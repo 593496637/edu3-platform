@@ -60,7 +60,7 @@ const httpLink = createHttpLink({
   },
 });
 
-// 创建 Apollo Client (简化版本，移除 retry 功能)
+// 创建 Apollo Client (修复了 devtools 配置)
 export const graphClient = new ApolloClient({
   link: from([
     errorLink,
@@ -147,8 +147,12 @@ export const graphClient = new ApolloClient({
     },
   },
   
-  // 连接到 React DevTools
-  connectToDevTools: import.meta.env.DEV,
+  // 修复：使用新的 devtools 配置方式而不是已弃用的 connectToDevTools
+  ...(import.meta.env.DEV && {
+    devtools: {
+      enabled: true
+    }
+  })
 });
 
 // 错误处理函数
