@@ -1,0 +1,181 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户表
+model User {
+  id          String   @id @default(uuid())
+  address     String   @unique // 钱包地址
+  username    String?  // 可选用户名
+  email       String?  // 可选邮箱
+  avatar      String?  // 头像URL
+  bio         String?  // 个人简介
+  isInstructor Boolean @default(false) // 是否为讲师
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关联关系
+  courses         Course[]        // 创建的课程
+  enrollments     Enrollment[]    // 购买的课程
+  progress        Progress[]      // 学习进度
+  reviews         Review[]        // 课程评价
+  instructorApplication InstructorApplication? // 讲师申请
+
+  @@map("users")
+}
+
+// 讲师申请表
+model InstructorApplication {
+  id          String                    @id @default(uuid())
+  userId      String                    @unique
+  status      InstructorApplicationStatus @default(PENDING)
+  appliedAt   DateTime                  @default(now())
+  reviewedAt  DateTime?
+  reviewedBy  String?                   // 审核人员
+  notes       String?                   // 审核备注
+
+  // 关联关系
+  user        User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("instructor_applications")
+}
+
+enum InstructorApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// 课程表
+model Course {
+  id          String   @id @default(uuid())
+  onChainId   Int      @unique // 链上课程ID
+  title       String
+  description String
+  content     String?  // 课程详细内容
+  price       String   // 价格(YD代币，存储为字符串避免精度问题)
+  thumbnail   String?  // 缩略图URL
+  duration    String?  // 课程时长
+  difficulty  CourseDifficulty @default(BEGINNER)
+  category    String?  // 课程分类
+  tags        String[] // 课程标签
+  requirements String[] // 前置要求
+  objectives   String[] // 学习目标
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关联关系
+  instructorId String
+  instructor   User         @relation(fields: [instructorId], references: [id])
+  lessons      Lesson[]     // 课程章节
+  enrollments  Enrollment[] // 学员注册
+  progress     Progress[]   // 学习进度
+  reviews      Review[]     // 课程评价
+
+  @@map("courses")
+}
+
+enum CourseDifficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+// 课程章节表
+model Lesson {
+  id          String   @id @default(uuid())
+  courseId    String
+  title       String
+  description String?
+  content     String?  // 课程内容(文本/HTML)
+  videoUrl    String?  // 视频链接
+  duration    String?  // 课时时长
+  order       Int      // 章节顺序
+  isPreview   Boolean  @default(false) // 是否可免费预览
+  resources   Json?    // 课程资源(JSON格式存储)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关联关系
+  course      Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progress    Progress[] // 学习进度
+
+  @@map("lessons")
+}
+
+// 课程注册表(购买记录)
+model Enrollment {
+  id          String   @id @default(uuid())
+  userId      String
+  courseId    String
+  txHash      String   @unique // 购买交易哈希
+  price       String   // 购买时的价格
+  enrolledAt  DateTime @default(now())
+
+  // 关联关系
+  user        User     @relation(fields: [userId], references: [id])
+  course      Course   @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId]) // 用户不能重复购买同一课程
+  @@map("enrollments")
+}
+
+// 学习进度表
+model Progress {
+  id          String   @id @default(uuid())
+  userId      String
+  courseId    String
+  lessonId    String
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+  watchTime   Int      @default(0) // 观看时长(秒)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关联关系
+  user        User     @relation(fields: [userId], references: [id])
+  course      Course   @relation(fields: [courseId], references: [id])
+  lesson      Lesson   @relation(fields: [lessonId], references: [id])
+
+  @@unique([userId, lessonId]) // 用户对每个课时只有一条进度记录
+  @@map("progress")
+}
+
+// 课程评价表
+model Review {
+  id          String   @id @default(uuid())
+  userId      String
+  courseId    String
+  rating      Int      // 1-5分评分
+  comment     String?  // 评价内容
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关联关系
+  user        User     @relation(fields: [userId], references: [id])
+  course      Course   @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId]) // 用户对每门课程只能评价一次
+  @@map("reviews")
+}
+
+// 系统配置表
+model SystemConfig {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_configs")
+}
