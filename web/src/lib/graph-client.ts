@@ -7,10 +7,10 @@ const GRAPH_ENDPOINTS = {
   development: 'http://localhost:8000/subgraphs/name/edu-3',
   
   // 生产环境 - 可以是 The Graph Studio 或 Hosted Service
-  production: process.env.VITE_GRAPH_ENDPOINT || 'https://api.studio.thegraph.com/query/your-deployment-id/edu-3/version/latest',
+  production: import.meta.env.VITE_GRAPH_ENDPOINT || 'https://api.studio.thegraph.com/query/your-deployment-id/edu-3/version/latest',
   
   // 测试网络
-  testnet: process.env.VITE_GRAPH_TESTNET_ENDPOINT || 'http://localhost:8000/subgraphs/name/edu-3',
+  testnet: import.meta.env.VITE_GRAPH_TESTNET_ENDPOINT || 'http://localhost:8000/subgraphs/name/edu-3',
 };
 
 // 错误处理
@@ -27,7 +27,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
     console.error(`Network error: ${networkError}`);
     
     // 如果是网络错误，可以尝试重试
-    if (networkError.statusCode === 429) {
+    if ('statusCode' in networkError && networkError.statusCode === 429) {
       console.warn('Rate limited by The Graph, retrying...');
     }
   }
@@ -148,20 +148,22 @@ export const graphClient = new ApolloClient({
   },
   
   // 连接到 React DevTools
-  connectToDevTools: process.env.NODE_ENV === 'development',
+  connectToDevTools: import.meta.env.DEV,
 });
 
 // 错误处理函数
 export function handleGraphError(error: any): string {
   if (error?.networkError) {
-    if (error.networkError.statusCode === 404) {
-      return 'The Graph endpoint not found. Please check your configuration.';
-    }
-    if (error.networkError.statusCode === 429) {
-      return 'Too many requests. Please try again later.';
-    }
-    if (error.networkError.statusCode >= 500) {
-      return 'The Graph service is temporarily unavailable.';
+    if ('statusCode' in error.networkError) {
+      if (error.networkError.statusCode === 404) {
+        return 'The Graph endpoint not found. Please check your configuration.';
+      }
+      if (error.networkError.statusCode === 429) {
+        return 'Too many requests. Please try again later.';
+      }
+      if (error.networkError.statusCode >= 500) {
+        return 'The Graph service is temporarily unavailable.';
+      }
     }
     return `Network error: ${error.networkError.message}`;
   }
