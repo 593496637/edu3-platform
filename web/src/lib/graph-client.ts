@@ -1,55 +1,146 @@
-import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client';
+import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/client';
+import { onError } from '@apollo/client/link/error';
+import { retryLink } from '@apollo/client/link/retry';
 
-// The Graph 端点配置
+// Graph 配置
 const GRAPH_ENDPOINTS = {
-  // 本地开发环境
-  local: 'http://localhost:8000/subgraphs/name/edu-3',
+  // 开发环境 - 本地 Graph 节点
+  development: 'http://localhost:8000/subgraphs/name/edu-3',
   
-  // Graph Studio 托管版本 (替换为你的实际 URL)
-  hosted: 'https://api.studio.thegraph.com/query/your-subgraph-id/edu-3/version/latest',
+  // 生产环境 - 可以是 The Graph Studio 或 Hosted Service
+  production: process.env.VITE_GRAPH_ENDPOINT || 'https://api.studio.thegraph.com/query/your-deployment-id/edu-3/version/latest',
   
-  // Sepolia 子图网络 (如果有的话)
-  sepolia: 'https://api.thegraph.com/subgraphs/name/your-username/edu3-sepolia'
+  // 测试网络
+  testnet: process.env.VITE_GRAPH_TESTNET_ENDPOINT || 'http://localhost:8000/subgraphs/name/edu-3',
 };
 
-// 根据环境选择端点
-const getGraphEndpoint = () => {
-  // 开发环境优先使用本地，然后回退到托管版本
-  if (import.meta.env.DEV) {
-    return import.meta.env.VITE_GRAPH_URL || GRAPH_ENDPOINTS.local;
+// 错误处理
+const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) => {
+  if (graphQLErrors) {
+    graphQLErrors.forEach(({ message, locations, path }) => {
+      console.error(
+        `GraphQL error: Message: ${message}, Location: ${locations}, Path: ${path}`
+      );
+    });
   }
-  
-  // 生产环境使用托管版本
-  return import.meta.env.VITE_GRAPH_URL || GRAPH_ENDPOINTS.hosted;
-};
 
-// 创建 HTTP Link
-const httpLink = createHttpLink({
-  uri: getGraphEndpoint(),
+  if (networkError) {
+    console.error(`Network error: ${networkError}`);
+    
+    // 如果是网络错误，可以尝试重试
+    if (networkError.statusCode === 429) {
+      console.warn('Rate limited by The Graph, retrying...');
+    }
+  }
 });
 
-// Apollo Client 配置
+// 重试配置
+const retryOptions = {
+  delay: {
+    initial: 300,
+    max: Infinity,
+    jitter: true,
+  },
+  attempts: {
+    max: 3,
+    retryIf: (error: any, _operation: any) => {
+      // 只在网络错误或5xx错误时重试
+      return !!error && (
+        error.networkError?.statusCode >= 500 ||
+        error.networkError?.statusCode === 429 ||
+        !error.networkError?.statusCode
+      );
+    },
+  },
+};
+
+// 获取当前环境的端点
+function getGraphEndpoint(): string {
+  if (typeof window !== 'undefined') {
+    // 浏览器环境
+    const hostname = window.location.hostname;
+    
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return GRAPH_ENDPOINTS.development;
+    }
+    
+    if (hostname.includes('testnet') || hostname.includes('sepolia')) {
+      return GRAPH_ENDPOINTS.testnet;
+    }
+  }
+  
+  return GRAPH_ENDPOINTS.production;
+}
+
+// HTTP 链接
+const httpLink = createHttpLink({
+  uri: getGraphEndpoint(),
+  // 添加请求头
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// 创建 Apollo Client
 export const graphClient = new ApolloClient({
-  link: httpLink,
+  link: from([
+    errorLink,
+    retryLink(retryOptions),
+    httpLink,
+  ]),
   cache: new InMemoryCache({
     typePolicies: {
+      // 用户余额缓存策略 - 按用户地址缓存
+      UserTokenBalance: {
+        keyFields: ['id'], // 使用 user address 作为 key
+      },
+      
+      // 交易记录不需要合并，按 ID 缓存
+      TokenPurchase: {
+        keyFields: ['id'],
+      },
+      TokenSale: {
+        keyFields: ['id'],
+      },
+      CoursePurchased: {
+        keyFields: ['id'],
+      },
+      TokenTransfer: {
+        keyFields: ['id'],
+      },
+      
+      // 查询字段的缓存策略
       Query: {
         fields: {
-          // 配置分页合并策略
+          // 余额查询 - 短时间缓存
+          userTokenBalance: {
+            merge: true,
+          },
+          
+          // 交易历史 - 分页合并
           tokenPurchases: {
-            keyArgs: ["where"],
+            keyArgs: ['where'], // 按查询条件缓存
             merge(existing = [], incoming) {
               return [...existing, ...incoming];
             },
           },
+          
           tokenSales: {
-            keyArgs: ["where"],
+            keyArgs: ['where'],
             merge(existing = [], incoming) {
               return [...existing, ...incoming];
             },
           },
+          
           coursePurchaseds: {
-            keyArgs: ["where"],
+            keyArgs: ['where'],
+            merge(existing = [], incoming) {
+              return [...existing, ...incoming];
+            },
+          },
+          
+          tokenTransfers: {
+            keyArgs: ['where'],
             merge(existing = [], incoming) {
               return [...existing, ...incoming];
             },
@@ -58,47 +149,72 @@ export const graphClient = new ApolloClient({
       },
     },
   }),
+  
+  // 默认查询选项
   defaultOptions: {
     watchQuery: {
-      errorPolicy: 'ignore',
-      fetchPolicy: 'cache-and-network', // 优先使用缓存，后台更新
+      // 缓存优先，然后网络更新
+      fetchPolicy: 'cache-first',
+      
+      // 错误策略
+      errorPolicy: 'all',
+      
+      // 通知所有组件
+      notifyOnNetworkStatusChange: true,
     },
+    
     query: {
-      errorPolicy: 'ignore',
-      fetchPolicy: 'cache-first', // 优先使用缓存
+      fetchPolicy: 'cache-first',
+      errorPolicy: 'all',
     },
   },
+  
+  // 连接到 React DevTools
+  connectToDevTools: process.env.NODE_ENV === 'development',
 });
 
-// 错误处理辅助函数
-export const handleGraphError = (error: any) => {
-  console.warn('Graph query failed:', error);
-  
-  // 可以在这里添加错误上报
-  if (import.meta.env.DEV) {
-    console.error('Graph Error Details:', error);
+// 错误处理函数
+export function handleGraphError(error: any): string {
+  if (error?.networkError) {
+    if (error.networkError.statusCode === 404) {
+      return 'The Graph endpoint not found. Please check your configuration.';
+    }
+    if (error.networkError.statusCode === 429) {
+      return 'Too many requests. Please try again later.';
+    }
+    if (error.networkError.statusCode >= 500) {
+      return 'The Graph service is temporarily unavailable.';
+    }
+    return `Network error: ${error.networkError.message}`;
   }
   
-  return null;
-};
+  if (error?.graphQLErrors?.length > 0) {
+    return error.graphQLErrors[0].message;
+  }
+  
+  return error?.message || 'An unknown error occurred';
+}
 
-// Graph 健康检查
-export const checkGraphHealth = async (): Promise<boolean> => {
+// 健康检查
+export async function checkGraphHealth(): Promise<boolean> {
   try {
-    const result = await graphClient.query({
-      query: require('./graphql-queries').GET_PLATFORM_STATS,
-      fetchPolicy: 'network-only',
-      errorPolicy: 'none',
+    const response = await fetch(getGraphEndpoint(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: '{ _meta { block { number } } }',
+      }),
     });
     
-    return !!result.data;
+    const data = await response.json();
+    return !!(data?.data?._meta?.block?.number);
   } catch (error) {
-    console.warn('Graph health check failed:', error);
+    console.error('Graph health check failed:', error);
     return false;
   }
-};
+}
 
-// 类型定义
+// 辅助类型定义
 export interface TokenPurchase {
   id: string;
   buyer: string;
@@ -123,7 +239,7 @@ export interface CoursePurchase {
   id: string;
   courseId: string;
   student: string;
-  instructor: string;
+  author: string;
   price: string;
   blockNumber: string;
   blockTimestamp: string;
@@ -148,18 +264,8 @@ export interface UserTokenBalance {
 }
 
 export interface PlatformStats {
-  ydtoken?: {
-    id: string;
-    name: string;
-    symbol: string;
-    decimals: number;
-    totalSupply: string;
-  };
-  tokenPurchases: TokenPurchase[];
-  tokenSales: TokenSale[];
-  coursePurchaseds: CoursePurchase[];
-  instructorApproveds: Array<{
-    id: string;
-    instructor: string;
-  }>;
+  totalTokenSupply: string;
+  totalUsers: number;
+  totalTransactions: number;
+  totalVolume: string;
 }
