@@ -1,6 +1,5 @@
 import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/client';
 import { onError } from '@apollo/client/link/error';
-import { RetryLink } from '@apollo/client/link/retry';
 
 // Graph 配置
 const GRAPH_ENDPOINTS = {
@@ -34,26 +33,6 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
   }
 });
 
-// 重试配置
-const retryLink = new RetryLink({
-  delay: {
-    initial: 300,
-    max: Infinity,
-    jitter: true,
-  },
-  attempts: {
-    max: 3,
-    retryIf: (error: any, _operation: any) => {
-      // 只在网络错误或5xx错误时重试
-      return !!error && (
-        error.networkError?.statusCode >= 500 ||
-        error.networkError?.statusCode === 429 ||
-        !error.networkError?.statusCode
-      );
-    },
-  },
-});
-
 // 获取当前环境的端点
 function getGraphEndpoint(): string {
   if (typeof window !== 'undefined') {
@@ -81,11 +60,10 @@ const httpLink = createHttpLink({
   },
 });
 
-// 创建 Apollo Client
+// 创建 Apollo Client (简化版本，移除 retry 功能)
 export const graphClient = new ApolloClient({
   link: from([
     errorLink,
-    retryLink,
     httpLink,
   ]),
   cache: new InMemoryCache({
