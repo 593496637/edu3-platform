@@ -1,62 +1,43 @@
-import { useState } from "react";
-import {
-  useAccount,
-  useReadContract,
-  useWriteContract,
-  useWaitForTransactionReceipt,
-} from "wagmi";
-import { parseEther } from "viem";
-import { Loader2, Plus, ShoppingCart, BookOpen, Eye } from "lucide-react";
+import { useAccount } from "wagmi";
+import { BookOpen, ShoppingCart, Plus, Eye, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { CONTRACTS, COURSE_PLATFORM_ABI } from "../lib/contracts";
-
-interface Course {
-  id: number;
-  instructor: string;
-  price: bigint;
-  title: string;
-  description: string;
-}
+import { useCourses, useBalance } from "../hooks/useApi";
 
 export default function HomePage() {
   const { address, isConnected } = useAccount();
+  const { courses, isLoading: coursesLoading, error: coursesError, refetch } = useCourses();
+  const { balanceFormatted, isLoading: balanceLoading } = useBalance(address);
 
-  // 获取课程总数
-  const { data: totalCourses, refetch: refetchTotalCourses } = useReadContract({
-    address: CONTRACTS.CoursePlatform,
-    abi: COURSE_PLATFORM_ABI,
-    functionName: "getTotalCourses",
-  });
+  if (coursesLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="mx-auto h-12 w-12 animate-spin text-blue-600" />
+          <p className="mt-4 text-gray-600">加载课程数据中...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // 模拟课程数据 - 实际应用中应该从链上获取
-  const courses: Course[] = Array.from(
-    { length: Number(totalCourses || 0) },
-    (_, i) => ({
-      id: i + 1,
-      instructor: "0x1234...5678",
-      price: parseEther("100"), // 100 YD
-      title: `Web3开发入门课程 ${i + 1}`,
-      description: "学习区块链和智能合约开发的基础知识",
-    })
-  );
-
-  const { data: userBalance } = useReadContract({
-    address: CONTRACTS.YDToken,
-    abi: [
-      {
-        name: "balanceOf",
-        type: "function",
-        stateMutability: "view",
-        inputs: [{ name: "account", type: "address" }],
-        outputs: [{ name: "", type: "uint256" }],
-      },
-    ],
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-    query: {
-      enabled: !!address,
-    },
-  });
+  if (coursesError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 mb-4">
+            <BookOpen className="mx-auto h-12 w-12" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">加载失败</h3>
+          <p className="text-gray-500 mb-4">{coursesError}</p>
+          <button
+            onClick={() => refetch()}
+            className="btn btn-primary"
+          >
+            重试
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -69,12 +50,18 @@ export default function HomePage() {
           </p>
           {isConnected && (
             <div className="mt-4 rounded-lg bg-blue-50 p-4">
-              <p className="text-sm text-blue-800">
-                您的YD代币余额: {" "}
-                <span className="font-semibold">
-                  {userBalance ? (Number(userBalance) / 1e18).toFixed(2) : "0"} YD
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-blue-800">
+                  您的YD代币余额: 
                 </span>
-              </p>
+                {balanceLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                ) : (
+                  <span className="font-semibold text-blue-900">
+                    {balanceFormatted} YD
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -86,7 +73,7 @@ export default function HomePage() {
               <BookOpen className="h-8 w-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-2xl font-semibold text-gray-900">
-                  {totalCourses?.toString() || "0"}
+                  {courses.length}
                 </p>
                 <p className="text-gray-600">总课程数</p>
               </div>
@@ -163,28 +150,28 @@ export default function HomePage() {
                     <div>
                       <p className="text-sm text-gray-500">讲师</p>
                       <p className="text-sm font-medium text-gray-900">
-                        {course.instructor.slice(0, 6)}...
-                        {course.instructor.slice(-4)}
+                        {course.instructor_address.slice(0, 6)}...
+                        {course.instructor_address.slice(-4)}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-500">价格</p>
                       <p className="text-lg font-semibold text-blue-600">
-                        {(Number(course.price) / 1e18).toFixed(0)} YD
+                        {course.priceformatted || (Number(course.price) / 1e18).toFixed(0)} YD
                       </p>
                     </div>
                   </div>
 
                   <div className="flex space-x-3">
                     <Link
-                      to={`/course/${course.id}`}
+                      to={`/course/${course.chain_id}`}
                       className="flex flex-1 items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                     >
                       <Eye className="mr-2 h-4 w-4" />
                       查看详情
                     </Link>
                     <Link
-                      to={`/course/${course.id}/buy`}
+                      to={`/course/${course.chain_id}/buy`}
                       className="flex flex-1 items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                     >
                       <ShoppingCart className="mr-2 h-4 w-4" />
