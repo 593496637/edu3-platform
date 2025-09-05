@@ -1,8 +1,41 @@
 import express from 'express';
 import { ethers } from 'ethers';
-import { CONTRACTS, COURSE_PLATFORM_ABI } from '../contracts/index.js';
 
 const router = express.Router();
+
+// 合约配置 (直接在这里定义，避免导入问题)
+const CONTRACTS = {
+  YDToken: '0xcD274B0B4cf04FfB5E6f1E17f8a62239a9564173',
+  CoursePlatform: '0xD3Ff74DD494471f55B204CB084837D1a7f184092',
+};
+
+// 简化的 Course Platform ABI (只包含需要的函数)
+const COURSE_PLATFORM_ABI = [
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "courseId", "type": "uint256"},
+      {"internalType": "address", "name": "user", "type": "address"}
+    ],
+    "name": "hasPurchasedCourse",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "courseId", "type": "uint256"}],
+    "name": "getCoursePrice",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "courseId", "type": "uint256"}],
+    "name": "getCourseAuthor",
+    "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
 
 // 验证用户是否购买了课程
 router.post('/courses/:courseId/verify-access', async (req, res) => {
@@ -18,7 +51,8 @@ router.post('/courses/:courseId/verify-access', async (req, res) => {
     }
 
     // 1. 连接到区块链验证购买状态
-    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+    const rpcUrl = process.env.RPC_URL || 'https://sepolia.infura.io/v3/YOUR_INFURA_KEY';
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
     const contract = new ethers.Contract(
       CONTRACTS.CoursePlatform,
       COURSE_PLATFORM_ABI,
@@ -78,7 +112,8 @@ router.get('/courses/:courseId/content', async (req, res) => {
     }
 
     // 重新验证购买状态 (防止伪造)
-    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+    const rpcUrl = process.env.RPC_URL || 'https://sepolia.infura.io/v3/YOUR_INFURA_KEY';
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
     const contract = new ethers.Contract(
       CONTRACTS.CoursePlatform,
       COURSE_PLATFORM_ABI,
