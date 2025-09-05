@@ -1,4 +1,4 @@
-import { BigInt, Bytes } from "@graphprotocol/graph-ts"
+import { BigInt, Bytes, Address } from "@graphprotocol/graph-ts"
 import {
   YDToken as YDTokenContract,
   TokensPurchased as TokensPurchasedEvent,
@@ -17,7 +17,7 @@ import {
 } from "../generated/schema"
 
 // 初始化或获取 YDToken 实体
-function getOrCreateYDToken(contractAddress: Bytes): YDToken {
+function getOrCreateYDToken(contractAddress: Address): YDToken {
   let token = YDToken.load(contractAddress)
   if (!token) {
     token = new YDToken(contractAddress)
@@ -35,7 +35,7 @@ function getOrCreateYDToken(contractAddress: Bytes): YDToken {
 }
 
 // 获取或创建用户余额实体
-function getOrCreateUserBalance(userAddress: Bytes): UserTokenBalance {
+function getOrCreateUserBalance(userAddress: Address): UserTokenBalance {
   let balance = UserTokenBalance.load(userAddress.toHexString())
   if (!balance) {
     balance = new UserTokenBalance(userAddress.toHexString())
@@ -47,7 +47,7 @@ function getOrCreateUserBalance(userAddress: Bytes): UserTokenBalance {
 }
 
 // 更新用户余额
-function updateUserBalance(userAddress: Bytes, contractAddress: Bytes, blockTimestamp: BigInt): void {
+function updateUserBalance(userAddress: Address, contractAddress: Address, blockTimestamp: BigInt): void {
   let balance = getOrCreateUserBalance(userAddress)
   let contract = YDTokenContract.bind(contractAddress)
   
@@ -124,7 +124,7 @@ export function handleTransfer(event: TransferEvent): void {
   token.save()
 
   // 更新发送方和接收方余额（排除零地址）
-  let zeroAddress = Bytes.fromHexString("0x0000000000000000000000000000000000000000")
+  let zeroAddress = Address.fromString("0x0000000000000000000000000000000000000000")
   
   if (event.params.from != zeroAddress) {
     updateUserBalance(event.params.from, event.address, event.block.timestamp)
