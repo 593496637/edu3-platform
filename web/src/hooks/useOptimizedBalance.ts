@@ -3,8 +3,18 @@ import { formatEther } from 'viem';
 import { CONTRACTS, YD_TOKEN_ABI } from '../lib/contracts';
 import { useState, useEffect } from 'react';
 
-// Graph 查询 hook
+// 重新导入新的智能查询
+import { useSmartBalance, useTransactionBalance } from './useSmartQueries';
+
+/**
+ * @deprecated 请使用 useSmartBalance 替代
+ * 保留此文件用于向后兼容性
+ */
+
+// Graph 查询 hook (已废弃，请使用 useSmartBalance)
 export function useGraphBalance() {
+  console.warn('useGraphBalance is deprecated. Please use useSmartBalance from useSmartQueries.ts');
+  
   const { address } = useAccount();
   const [graphBalance, setGraphBalance] = useState<{
     eth: string;
@@ -62,8 +72,10 @@ export function useGraphBalance() {
   return { graphBalance, isLoading };
 }
 
-// 混合查询策略
+// 混合查询策略 (已升级，建议使用 useSmartBalance)
 export function useOptimizedBalance() {
+  console.warn('useOptimizedBalance is deprecated. Please use useSmartBalance from useSmartQueries.ts');
+  
   const { address } = useAccount();
   
   // RPC 查询（主要数据源）
@@ -124,6 +136,15 @@ export function useOptimizedBalance() {
   };
 }
 
+// 🟢 推荐使用的新 API (转发到新的实现)
+export function useBalanceForBrowsing() {
+  return useSmartBalance(false); // 使用混合策略
+}
+
+export function useBalanceForTransaction() {
+  return useTransactionBalance(); // 强制使用 RPC
+}
+
 // 原有的简单查询 hooks（保持兼容性）
 export function useETHBalance() {
   const { address } = useAccount();
@@ -167,3 +188,27 @@ export function useYDBalance() {
     refetch,
   };
 }
+
+// 🚀 迁移指南
+export const MIGRATION_GUIDE = {
+  useGraphBalance: 'useSmartBalance(false)',
+  useOptimizedBalance: 'useSmartBalance(false)',
+  useBalanceForTransaction: 'useTransactionBalance()',
+  useETHBalance: 'useSmartBalance(false).eth',
+  useYDBalance: 'useSmartBalance(false).yd',
+} as const;
+
+export default {
+  // 新的推荐 API
+  useBalanceForBrowsing,
+  useBalanceForTransaction,
+  
+  // 兼容性 API (废弃)
+  useOptimizedBalance,
+  useGraphBalance,
+  useETHBalance,
+  useYDBalance,
+  
+  // 迁移指南
+  MIGRATION_GUIDE,
+};
