@@ -4,7 +4,7 @@ EDU3 Web3教育平台后端API文档
 
 ## 基础信息
 
-- **基础URL**: `http://localhost:3001/api`
+- **基础URL**: `http://localhost:3000/api`
 - **认证方式**: JWT Bearer Token
 - **内容类型**: `application/json`
 
@@ -317,7 +317,7 @@ API实施了速率限制:
 DATABASE_URL="postgresql://username:password@localhost:5432/edu3_db"
 
 # 服务器
-PORT=3001
+PORT=3000
 NODE_ENV=development
 
 # JWT
@@ -435,13 +435,13 @@ const totalCourses = await contract.getTotalCourses();
 
 ```bash
 # 健康检查
-curl http://localhost:3001/health
+curl http://localhost:3000/health
 
 # 获取课程列表
-curl http://localhost:3001/api/courses
+curl http://localhost:3000/api/courses
 
 # 钱包登录
-curl -X POST http://localhost:3001/api/auth/wallet \
+curl -X POST http://localhost:3000/api/auth/wallet \
   -H "Content-Type: application/json" \
   -d '{
     "address": "0x1234567890123456789012345678901234567890",

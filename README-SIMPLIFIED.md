@@ -57,7 +57,7 @@ pnpm install
 cp .env.example .env.local
 
 # 配置API地址
-VITE_API_URL=http://localhost:3001/api
+VITE_API_URL=http://localhost:3000/api
 ```
 
 ### 3. 启动开发服务器

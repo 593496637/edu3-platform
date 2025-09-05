@@ -46,7 +46,7 @@ npm run dev
 
 ### 3. 验证运行
 
-- 后端API: http://localhost:3001/health
+- 后端API: http://localhost:3000/health
 - 前端界面: http://localhost:5173
 - 数据库: PostgreSQL 运行在 localhost:5432
 
@@ -76,16 +76,16 @@ npm run dev
 
 ```bash
 # 健康检查
-curl http://localhost:3001/health
+curl http://localhost:3000/health
 
 # 获取课程列表
-curl http://localhost:3001/api/courses
+curl http://localhost:3000/api/courses
 
 # 查询代币余额
-curl http://localhost:3001/api/blockchain/balance/0x1234567890123456789012345678901234567890
+curl http://localhost:3000/api/blockchain/balance/0x1234567890123456789012345678901234567890
 
 # 检查购买状态
-curl http://localhost:3001/api/blockchain/purchased/1/0x1234567890123456789012345678901234567890
+curl http://localhost:3000/api/blockchain/purchased/1/0x1234567890123456789012345678901234567890
 ```
 
 ## 🔧 常见问题解决
@@ -144,7 +144,7 @@ CORS_ORIGIN=http://localhost:5173
 **前端 (.env.local)**
 ```bash
 # API配置
-VITE_API_URL=http://localhost:3001/api
+VITE_API_URL=http://localhost:3000/api
 
 # 应用配置
 VITE_APP_NAME=EDU3 Platform

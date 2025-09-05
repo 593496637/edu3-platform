@@ -7,7 +7,7 @@ export const CONTRACTS = {
 };
 
 // API配置
-export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 // YD Token ABI (简化版)
 export const YD_TOKEN_ABI = [

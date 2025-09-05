@@ -58,7 +58,7 @@ npm run dev
 
 ### 1. 钱包登录
 ```bash
-curl -X POST http://localhost:3001/api/auth/login \
+curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "address": "0x1234567890123456789012345678901234567890",
@@ -69,12 +69,12 @@ curl -X POST http://localhost:3001/api/auth/login \
 
 ### 2. 查询代币余额
 ```bash
-curl http://localhost:3001/api/blockchain/balance/0x1234567890123456789012345678901234567890
+curl http://localhost:3000/api/blockchain/balance/0x1234567890123456789012345678901234567890
 ```
 
 ### 3. 验证购买交易
 ```bash
-curl -X POST http://localhost:3001/api/purchases/verify \
+curl -X POST http://localhost:3000/api/purchases/verify \
   -H "Content-Type: application/json" \
   -d '{
     "txHash": "0xabc123...",
