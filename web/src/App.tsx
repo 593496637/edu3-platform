@@ -6,7 +6,8 @@ import { config } from "./lib/wagmi";
 
 // Components
 import Header from "./components/Header";
-import { GraphProvider } from "./components/GraphProvider"; // 🚀 新增
+import { GraphProvider } from "./components/GraphProvider";
+import GraphTestPage from "./components/GraphTestPage"; // 🚀 新增测试页面
 
 // Pages
 import HomePage from "./pages/HomePage";
@@ -26,12 +27,15 @@ function App() {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
-          <GraphProvider> {/* 🚀 新增 The Graph Provider */}
+          <GraphProvider>
             <Router>
               <div className="min-h-screen bg-gray-50">
                 <Routes>
                   {/* 学习页面不显示Header (全屏学习体验) */}
                   <Route path="/course/:id/learn" element={<CourseLearnPage />} />
+                  
+                  {/* 🚀 Graph 测试页面 (全屏) */}
+                  <Route path="/graph-test" element={<GraphTestPage />} />
                   
                   {/* 其他页面都显示Header */}
                   <Route path="/*" element={
@@ -45,7 +49,8 @@ function App() {
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route path="/course/:id" element={<CourseDetailPage />} />
                         <Route path="/course/:id/buy" element={<CourseDetailPage />} />
-                        {/* 🚀 新增演示页面 */}
+                        
+                        {/* 简单演示页面 */}
                         <Route path="/demo" element={<div className="min-h-screen flex items-center justify-center">
                           <div className="text-center">
                             <h1 className="text-4xl font-bold text-gray-900 mb-4">Graph 优化演示</h1>
@@ -55,9 +60,15 @@ function App() {
                               <div className="bg-blue-100 p-3 rounded">⚡ 查询性能优化已启用</div>
                               <div className="bg-yellow-100 p-3 rounded">🔄 智能缓存策略已配置</div>
                             </div>
-                            <a href="/" className="text-blue-600 hover:text-blue-800 mt-4 inline-block">返回首页</a>
+                            <div className="mt-6 space-x-4">
+                              <a href="/graph-test" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                查看详细测试
+                              </a>
+                              <a href="/" className="text-blue-600 hover:text-blue-800">返回首页</a>
+                            </div>
                           </div>
                         </div>} />
+                        
                         {/* 404页面 */}
                         <Route path="*" element={
                           <div className="min-h-screen flex items-center justify-center">
@@ -74,7 +85,7 @@ function App() {
                 </Routes>
               </div>
             </Router>
-          </GraphProvider> {/* 🚀 关闭 The Graph Provider */}
+          </GraphProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
