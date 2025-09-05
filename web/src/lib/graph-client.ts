@@ -1,6 +1,6 @@
 import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/client';
 import { onError } from '@apollo/client/link/error';
-import { retryLink } from '@apollo/client/link/retry';
+import { RetryLink } from '@apollo/client/link/retry';
 
 // Graph 配置
 const GRAPH_ENDPOINTS = {
@@ -35,7 +35,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
 });
 
 // 重试配置
-const retryOptions = {
+const retryLink = new RetryLink({
   delay: {
     initial: 300,
     max: Infinity,
@@ -52,7 +52,7 @@ const retryOptions = {
       );
     },
   },
-};
+});
 
 // 获取当前环境的端点
 function getGraphEndpoint(): string {
@@ -85,7 +85,7 @@ const httpLink = createHttpLink({
 export const graphClient = new ApolloClient({
   link: from([
     errorLink,
-    retryLink(retryOptions),
+    retryLink,
     httpLink,
   ]),
   cache: new InMemoryCache({
