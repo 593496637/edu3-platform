@@ -9,8 +9,40 @@ export const CONTRACTS = {
 // API配置
 export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
-// YD Token ABI (简化版)
+// 兑换汇率常量
+export const EXCHANGE_RATE = 4000; // 1 ETH = 4000 YD
+
+// YD Token ABI (根据实际合约更新)
 export const YD_TOKEN_ABI = [
+  // ERC20 基础函数
+  {
+    name: "name",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "string" }],
+  },
+  {
+    name: "symbol",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "string" }],
+  },
+  {
+    name: "decimals",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint8" }],
+  },
+  {
+    name: "totalSupply",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
   {
     name: "balanceOf",
     type: "function",
@@ -38,20 +70,60 @@ export const YD_TOKEN_ABI = [
     ],
     outputs: [{ name: "", type: "bool" }],
   },
-  // Exchange functions
+  // 兑换功能
   {
-    name: "buyTokens",
+    name: "EXCHANGE_RATE",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "buyTokensWithETH",
     type: "function",
     stateMutability: "payable",
     inputs: [],
     outputs: [],
   },
   {
-    name: "sellTokens",
+    name: "sellTokensForETH",
     type: "function",
     stateMutability: "nonpayable",
-    inputs: [{ name: "amount", type: "uint256" }],
+    inputs: [{ name: "tokenAmount", type: "uint256" }],
     outputs: [],
+  },
+  {
+    name: "getETHAmount",
+    type: "function",
+    stateMutability: "pure",
+    inputs: [{ name: "tokenAmount", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "getTokenAmount",
+    type: "function",
+    stateMutability: "pure",
+    inputs: [{ name: "ethAmount", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  // 事件
+  {
+    name: "TokensPurchased",
+    type: "event",
+    inputs: [
+      { indexed: true, name: "buyer", type: "address" },
+      { name: "ethAmount", type: "uint256" },
+      { name: "tokenAmount", type: "uint256" },
+    ],
+  },
+  {
+    name: "TokensSold",
+    type: "event",
+    inputs: [
+      { indexed: true, name: "seller", type: "address" },
+      { name: "tokenAmount", type: "uint256" },
+      { name: "ethAmount", type: "uint256" },
+    ],
   },
 ] as const;
 
@@ -145,6 +217,21 @@ export const formatYDToken = (amount: bigint) => {
 
 export const parseYDToken = (amount: string) => {
   return parseEther(amount);
+};
+
+export const formatEther = (amount: bigint) => {
+  return (Number(amount) / 1e18).toFixed(4);
+};
+
+// 兑换计算工具
+export const calculateYDFromETH = (ethAmount: string): string => {
+  const eth = parseFloat(ethAmount);
+  return (eth * EXCHANGE_RATE).toString();
+};
+
+export const calculateETHFromYD = (ydAmount: string): string => {
+  const yd = parseFloat(ydAmount);
+  return (yd / EXCHANGE_RATE).toString();
 };
 
 // API 请求工具
