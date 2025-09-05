@@ -1,6 +1,6 @@
 import { useAccount, useBalance, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
-import { CONTRACTS, YD_TOKEN_ABI, EXCHANGE_RATE } from '@/lib/contracts';
+import { CONTRACTS, YD_TOKEN_ABI, EXCHANGE_RATE } from '../lib/contracts';
 import { useState, useCallback } from 'react';
 
 // 获取 ETH 余额
