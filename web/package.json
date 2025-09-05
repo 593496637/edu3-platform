@@ -13,6 +13,8 @@
     "@rainbow-me/rainbowkit": "^2.2.8",
     "@tailwindcss/postcss": "^4.1.13",
     "@tanstack/react-query": "^5.86.0",
+    "@apollo/client": "^3.11.0",
+    "graphql": "^16.8.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.542.0",
     "react": "^19.1.1",
