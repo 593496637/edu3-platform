@@ -7,7 +7,7 @@ import { config } from "./lib/wagmi";
 // Components
 import Header from "./components/Header";
 import { GraphProvider } from "./components/GraphProvider";
-import GraphTestPage from "./components/GraphTestPage"; // 🚀 新增测试页面
+import SimpleGraphTest from "./components/SimpleGraphTest"; // 🚀 简单测试页面
 
 // Pages
 import HomePage from "./pages/HomePage";
@@ -34,8 +34,8 @@ function App() {
                   {/* 学习页面不显示Header (全屏学习体验) */}
                   <Route path="/course/:id/learn" element={<CourseLearnPage />} />
                   
-                  {/* 🚀 Graph 测试页面 (全屏) */}
-                  <Route path="/graph-test" element={<GraphTestPage />} />
+                  {/* 🚀 简单测试页面 (全屏) */}
+                  <Route path="/test" element={<SimpleGraphTest />} />
                   
                   {/* 其他页面都显示Header */}
                   <Route path="/*" element={
@@ -61,8 +61,8 @@ function App() {
                               <div className="bg-yellow-100 p-3 rounded">🔄 智能缓存策略已配置</div>
                             </div>
                             <div className="mt-6 space-x-4">
-                              <a href="/graph-test" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                                查看详细测试
+                              <a href="/test" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                基础测试
                               </a>
                               <a href="/" className="text-blue-600 hover:text-blue-800">返回首页</a>
                             </div>
