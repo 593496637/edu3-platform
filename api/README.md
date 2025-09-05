@@ -336,125 +336,149 @@ CORS_ORIGIN=http://localhost:5173
 
 ## 部署指南
 
-### 本地开发
-
-1. 安装依赖:
+### 1. 安装依赖
 ```bash
 cd api
 npm install
 ```
 
-2. 配置环境变量:
+### 2. 设置环境变量
 ```bash
 cp .env.example .env
-# 编辑 .env 文件配置数据库和其他参数
+# 编辑 .env 文件，填入实际配置
 ```
 
-3. 设置数据库:
+### 3. 数据库迁移
 ```bash
-npm run db:migrate
-npm run db:generate
+npx prisma migrate dev
+npx prisma generate
+```
+
+### 4. 数据初始化
+```bash
 npm run db:seed
 ```
 
-4. 启动开发服务器:
+### 5. 启动开发服务器
 ```bash
 npm run dev
 ```
 
-### 生产部署
-
-1. 构建项目:
+### 6. 构建生产版本
 ```bash
 npm run build
-```
-
-2. 启动生产服务器:
-```bash
 npm start
 ```
 
-## 开发说明
+## 开发指南
 
-### 数据库迁移
+### 项目结构
+```
+api/
+├── src/
+│   ├── lib/          # 工具库
+│   ├── middleware/   # 中间件
+│   ├── routes/       # 路由定义
+│   ├── scripts/      # 脚本文件
+│   └── index.ts      # 入口文件
+├── prisma/
+│   └── schema.prisma # 数据库模型
+├── package.json
+└── tsconfig.json
+```
 
-创建新的迁移:
+### 添加新路由
+
+1. 在 `src/routes/` 目录下创建新的路由文件
+2. 使用 `asyncHandler` 包装异步路由处理器
+3. 使用 `express-validator` 进行参数验证
+4. 在 `src/index.ts` 中注册新路由
+
+### 数据库操作
+
+使用Prisma进行数据库操作:
+
+```typescript
+import { prisma } from '../lib/prisma';
+
+// 查询
+const users = await prisma.user.findMany();
+
+// 创建
+const user = await prisma.user.create({
+  data: { address: '0x123...', username: 'Alice' }
+});
+
+// 更新
+const updatedUser = await prisma.user.update({
+  where: { id: userId },
+  data: { username: 'Bob' }
+});
+```
+
+### 区块链交互
+
+使用ethers.js与智能合约交互:
+
+```typescript
+import { getCoursePlatformContract } from '../lib/blockchain';
+
+const contract = getCoursePlatformContract();
+const totalCourses = await contract.getTotalCourses();
+```
+
+## 测试
+
+### API测试示例
+
+使用curl测试API:
+
 ```bash
-npx prisma migrate dev --name migration_name
+# 健康检查
+curl http://localhost:3001/health
+
+# 获取课程列表
+curl http://localhost:3001/api/courses
+
+# 钱包登录
+curl -X POST http://localhost:3001/api/auth/wallet \
+  -H "Content-Type: application/json" \
+  -d '{
+    "address": "0x1234567890123456789012345678901234567890",
+    "message": "验证钱包地址: 0x1234567890123456789012345678901234567890\n时间戳: 1641024000000",
+    "signature": "0xabcdef..."
+  }'
 ```
 
-重置数据库:
-```bash
-npx prisma migrate reset
-```
+## 故障排除
 
-### 代码结构
+### 常见问题
 
-```
-src/
-├── index.ts              # 应用入口
-├── lib/
-│   ├── prisma.ts         # 数据库连接
-│   └── blockchain.ts     # 区块链交互
-├── middleware/
-│   ├── auth.ts           # 认证中间件
-│   ├── errorHandler.ts   # 错误处理
-│   └── requestLogger.ts  # 请求日志
-├── routes/
-│   ├── auth.ts           # 认证路由
-│   ├── courses.ts        # 课程路由
-│   ├── users.ts          # 用户路由
-│   └── blockchain.ts     # 区块链路由
-└── scripts/
-    └── seed.ts           # 数据库种子数据
-```
+1. **数据库连接失败**
+   - 检查 `DATABASE_URL` 环境变量
+   - 确保PostgreSQL服务正在运行
 
-### API设计原则
+2. **区块链连接失败**
+   - 检查 `SEPOLIA_RPC_URL` 是否正确
+   - 验证网络连接
 
-1. **RESTful设计**: 遵循REST API设计规范
-2. **统一响应格式**: 所有API响应使用统一的JSON格式
-3. **错误处理**: 统一的错误处理和状态码
-4. **认证授权**: 基于JWT的认证和基于角色的授权
-5. **输入验证**: 使用express-validator进行输入验证
-6. **安全性**: 使用helmet、cors、rate-limiting等安全中间件
+3. **JWT验证失败**
+   - 检查 `JWT_SECRET` 环境变量
+   - 确保前端发送正确的Authorization头
 
-### 测试
+4. **CORS错误**
+   - 检查 `CORS_ORIGIN` 配置
+   - 确保前端域名在允许列表中
 
-建议使用Postman或类似工具测试API端点。可以导入以下环境变量:
+### 日志查看
 
-```json
-{
-  "name": "EDU3 API",
-  "values": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:3001/api"
-    },
-    {
-      "key": "token",
-      "value": "your-jwt-token"
-    }
-  ]
-}
-```
+开发环境下，API会输出详细的请求日志和错误信息。生产环境建议使用专业的日志管理工具。
 
-### 监控和日志
+## 安全注意事项
 
-- 所有HTTP请求都会被记录到控制台
-- 错误日志包含详细的堆栈信息（仅开发环境）
-- 可以集成Winston或其他日志库进行更高级的日志管理
-
-### 性能优化
-
-- 使用Prisma连接池管理数据库连接
-- 实施API速率限制
-- 对频繁查询的数据考虑添加缓存
-- 使用分页避免大量数据查询
-
-### 安全考虑
-
-- JWT token有过期时间
-- 钱包签名验证防止伪造身份
-- 输入验证防止SQL注入
-- CORS配置限制跨域访问
-- 使用Helmet增强HTTP安全头
+1. **私钥管理**: 生产环境使用安全的私钥管理方案
+2. **JWT密钥**: 使用强随机密钥，定期轮换
+3. **HTTPS**: 生产环境必须使用HTTPS
+4. **输入验证**: 严格验证所有用户输入
+5. **权限控制**: 实施细粒度的权限控制
+6. **日志审计**: 记录关键操作的审计日志
