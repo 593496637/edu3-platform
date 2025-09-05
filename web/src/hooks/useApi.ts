@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
-import { apiRequest, Course, Purchase } from '../lib/contracts';
+import { apiRequest, type Course, type Purchase } from '../lib/contracts';
 
 // 钱包登录hook
 export const useWalletAuth = () => {
@@ -82,7 +82,7 @@ export const useCourses = () => {
     try {
       const response = await apiRequest('/courses');
       if (response.success) {
-        setCourses(response.data);
+        setCourses(response.data.courses);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch courses');
