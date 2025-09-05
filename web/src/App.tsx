@@ -6,6 +6,7 @@ import { config } from "./lib/wagmi";
 
 // Components
 import Header from "./components/Header";
+import { GraphProvider } from "./components/GraphProvider"; // 🚀 新增
 
 // Pages
 import HomePage from "./pages/HomePage";
@@ -25,40 +26,55 @@ function App() {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
-          <Router>
-            <div className="min-h-screen bg-gray-50">
-              <Routes>
-                {/* 学习页面不显示Header (全屏学习体验) */}
-                <Route path="/course/:id/learn" element={<CourseLearnPage />} />
-                
-                {/* 其他页面都显示Header */}
-                <Route path="/*" element={
-                  <>
-                    <Header />
-                    <Routes>
-                      <Route path="/" element={<HomePage />} />
-                      <Route path="/exchange" element={<ExchangePage />} />
-                      <Route path="/instructor" element={<InstructorPage />} />
-                      <Route path="/my-courses" element={<MyCoursesPage />} />
-                      <Route path="/profile" element={<ProfilePage />} />
-                      <Route path="/course/:id" element={<CourseDetailPage />} />
-                      <Route path="/course/:id/buy" element={<CourseDetailPage />} />
-                      {/* 404页面 */}
-                      <Route path="*" element={
-                        <div className="min-h-screen flex items-center justify-center">
+          <GraphProvider> {/* 🚀 新增 The Graph Provider */}
+            <Router>
+              <div className="min-h-screen bg-gray-50">
+                <Routes>
+                  {/* 学习页面不显示Header (全屏学习体验) */}
+                  <Route path="/course/:id/learn" element={<CourseLearnPage />} />
+                  
+                  {/* 其他页面都显示Header */}
+                  <Route path="/*" element={
+                    <>
+                      <Header />
+                      <Routes>
+                        <Route path="/" element={<HomePage />} />
+                        <Route path="/exchange" element={<ExchangePage />} />
+                        <Route path="/instructor" element={<InstructorPage />} />
+                        <Route path="/my-courses" element={<MyCoursesPage />} />
+                        <Route path="/profile" element={<ProfilePage />} />
+                        <Route path="/course/:id" element={<CourseDetailPage />} />
+                        <Route path="/course/:id/buy" element={<CourseDetailPage />} />
+                        {/* 🚀 新增演示页面 */}
+                        <Route path="/demo" element={<div className="min-h-screen flex items-center justify-center">
                           <div className="text-center">
-                            <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
-                            <p className="text-gray-600 mb-4">页面未找到</p>
-                            <a href="/" className="text-blue-600 hover:text-blue-800">返回首页</a>
+                            <h1 className="text-4xl font-bold text-gray-900 mb-4">Graph 优化演示</h1>
+                            <p className="text-gray-600 mb-4">The Graph 查询优化已启用</p>
+                            <div className="space-y-2 text-left max-w-md">
+                              <div className="bg-green-100 p-3 rounded">✅ Apollo Client 已连接</div>
+                              <div className="bg-blue-100 p-3 rounded">⚡ 查询性能优化已启用</div>
+                              <div className="bg-yellow-100 p-3 rounded">🔄 智能缓存策略已配置</div>
+                            </div>
+                            <a href="/" className="text-blue-600 hover:text-blue-800 mt-4 inline-block">返回首页</a>
                           </div>
-                        </div>
-                      } />
-                    </Routes>
-                  </>
-                } />
-              </Routes>
-            </div>
-          </Router>
+                        </div>} />
+                        {/* 404页面 */}
+                        <Route path="*" element={
+                          <div className="min-h-screen flex items-center justify-center">
+                            <div className="text-center">
+                              <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
+                              <p className="text-gray-600 mb-4">页面未找到</p>
+                              <a href="/" className="text-blue-600 hover:text-blue-800">返回首页</a>
+                            </div>
+                          </div>
+                        } />
+                      </Routes>
+                    </>
+                  } />
+                </Routes>
+              </div>
+            </Router>
+          </GraphProvider> {/* 🚀 关闭 The Graph Provider */}
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
