@@ -13,6 +13,8 @@ import ExchangePage from "./pages/ExchangePage";
 import InstructorPage from "./pages/InstructorPage";
 import MyCoursesPage from "./pages/MyCoursesPage";
 import ProfilePage from "./pages/ProfilePage";
+import CourseDetailPage from "./pages/CourseDetailPage";
+import CourseLearnPage from "./pages/CourseLearnPage";
 
 import "@rainbow-me/rainbowkit/styles.css";
 
@@ -25,26 +27,34 @@ function App() {
         <RainbowKitProvider>
           <Router>
             <div className="min-h-screen bg-gray-50">
-              <Header />
               <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/exchange" element={<ExchangePage />} />
-                <Route path="/instructor" element={<InstructorPage />} />
-                <Route path="/my-courses" element={<MyCoursesPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                {/* 预留课程相关路由 */}
-                <Route path="/course/:id" element={<div className="p-8 text-center">课程详情页面 - 开发中</div>} />
-                <Route path="/course/:id/buy" element={<div className="p-8 text-center">课程购买页面 - 开发中</div>} />
-                <Route path="/course/:id/learn" element={<div className="p-8 text-center">课程学习页面 - 开发中</div>} />
-                {/* 404页面 */}
-                <Route path="*" element={
-                  <div className="min-h-screen flex items-center justify-center">
-                    <div className="text-center">
-                      <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
-                      <p className="text-gray-600 mb-4">页面未找到</p>
-                      <a href="/" className="text-blue-600 hover:text-blue-800">返回首页</a>
-                    </div>
-                  </div>
+                {/* 学习页面不显示Header (全屏学习体验) */}
+                <Route path="/course/:id/learn" element={<CourseLearnPage />} />
+                
+                {/* 其他页面都显示Header */}
+                <Route path="/*" element={
+                  <>
+                    <Header />
+                    <Routes>
+                      <Route path="/" element={<HomePage />} />
+                      <Route path="/exchange" element={<ExchangePage />} />
+                      <Route path="/instructor" element={<InstructorPage />} />
+                      <Route path="/my-courses" element={<MyCoursesPage />} />
+                      <Route path="/profile" element={<ProfilePage />} />
+                      <Route path="/course/:id" element={<CourseDetailPage />} />
+                      <Route path="/course/:id/buy" element={<CourseDetailPage />} />
+                      {/* 404页面 */}
+                      <Route path="*" element={
+                        <div className="min-h-screen flex items-center justify-center">
+                          <div className="text-center">
+                            <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
+                            <p className="text-gray-600 mb-4">页面未找到</p>
+                            <a href="/" className="text-blue-600 hover:text-blue-800">返回首页</a>
+                          </div>
+                        </div>
+                      } />
+                    </Routes>
+                  </>
                 } />
               </Routes>
             </div>
