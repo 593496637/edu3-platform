@@ -46,9 +46,9 @@ dataSources:
     name: YDToken
     network: sepolia
     source:
-      address: "0x0000000000000000000000000000000000000000" # TODO: 替换为实际的YDToken合约地址
+      address: "0xcD274B0B4cf04FfB5E6f1E17f8a62239a9564173" # 需要替换为实际部署的地址
       abi: YDToken
-      startBlock: 9136475 # TODO: 替换为YDToken合约部署的实际区块号
+      startBlock: 9138030 # 需要替换为YDToken合约部署的区块号
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
