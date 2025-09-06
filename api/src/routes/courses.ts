@@ -55,7 +55,7 @@ const COURSE_PLATFORM_ABI = [
 ];
 
 // 模拟课程数据 (实际项目中应该从数据库获取)
-const mockCourses = [
+let mockCourses = [
   {
     id: 1,
     chain_id: 1,
@@ -176,6 +176,150 @@ router.get('/:courseId', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch course'
+    });
+  }
+});
+
+// 创建课程
+router.post('/', async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      content,
+      price,
+      duration,
+      difficulty,
+      category,
+      tags,
+      requirements,
+      objectives,
+      thumbnail,
+      onChainId
+    } = req.body;
+
+    // 验证必填字段
+    if (!title || !description || !price || !category) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: title, description, price, category'
+      });
+    }
+
+    // 在实际项目中，这里应该:
+    // 1. 验证用户是否为讲师
+    // 2. 创建课程记录到数据库
+    // 3. 可选：同时在区块链上创建课程
+
+    // 临时实现：添加到模拟数据
+    const newCourse = {
+      id: mockCourses.length + 1,
+      chain_id: onChainId || mockCourses.length + 1,
+      title,
+      description,
+      content: content || description,
+      price: price.toString(),
+      priceformatted: (parseFloat(price) / 1e18).toString(), // 假设价格以wei为单位
+      duration: duration || "待定",
+      difficulty: difficulty || "BEGINNER",
+      category: category || "Development",
+      tags: tags || [],
+      requirements: requirements || [],
+      objectives: objectives || [],
+      thumbnail: thumbnail || "https://via.placeholder.com/300x200",
+      instructor_address: "0x1234567890123456789012345678901234567890", // 这里应该从JWT token获取
+      created_at: new Date().toISOString(),
+      enrollmentCount: 0,
+      reviewCount: 0
+    };
+
+    // 添加到模拟数据数组
+    mockCourses.push(newCourse);
+
+    res.status(201).json({
+      success: true,
+      message: 'Course created successfully',
+      data: newCourse
+    });
+
+  } catch (error) {
+    console.error('Failed to create course:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create course'
+    });
+  }
+});
+
+// 更新课程信息
+router.put('/:courseId', async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const courseIdNum = parseInt(courseId);
+
+    const updateData = req.body;
+
+    // 查找要更新的课程
+    const courseIndex = mockCourses.findIndex(c => c.id === courseIdNum);
+
+    if (courseIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        error: 'Course not found'
+      });
+    }
+
+    // 更新课程数据
+    mockCourses[courseIndex] = {
+      ...mockCourses[courseIndex],
+      ...updateData,
+      updated_at: new Date().toISOString()
+    };
+
+    res.json({
+      success: true,
+      message: 'Course updated successfully',
+      data: mockCourses[courseIndex]
+    });
+
+  } catch (error) {
+    console.error('Failed to update course:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update course'
+    });
+  }
+});
+
+// 删除课程
+router.delete('/:courseId', async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const courseIdNum = parseInt(courseId);
+
+    const courseIndex = mockCourses.findIndex(c => c.id === courseIdNum);
+
+    if (courseIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        error: 'Course not found'
+      });
+    }
+
+    // 从数组中移除课程
+    const deletedCourse = mockCourses.splice(courseIndex, 1)[0];
+
+    res.json({
+      success: true,
+      message: 'Course deleted successfully',
+      data: deletedCourse
+    });
+
+  } catch (error) {
+    console.error('Failed to delete course:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete course'
     });
   }
 });
