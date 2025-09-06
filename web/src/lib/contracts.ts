@@ -127,14 +127,15 @@ export const YD_TOKEN_ABI = [
   },
 ] as const;
 
-// Course Platform ABI (简化版)
+// Course Platform ABI (完整版本，包含讲师申请)
 export const COURSE_PLATFORM_ABI = [
+  // 课程相关
   {
     name: "createCourse",
     type: "function",
     stateMutability: "nonpayable",
     inputs: [{ name: "price", type: "uint256" }],
-    outputs: [],
+    outputs: [{ name: "", type: "uint256" }],
   },
   {
     name: "buyCourse",
@@ -144,7 +145,7 @@ export const COURSE_PLATFORM_ABI = [
     outputs: [],
   },
   {
-    name: "hasPurchasedCourse",
+    name: "hasPurchased",
     type: "function",
     stateMutability: "view",
     inputs: [
@@ -154,18 +155,14 @@ export const COURSE_PLATFORM_ABI = [
     outputs: [{ name: "", type: "bool" }],
   },
   {
-    name: "isInstructor",
+    name: "hasUserPurchasedCourse",
     type: "function",
     stateMutability: "view",
-    inputs: [{ name: "user", type: "address" }],
+    inputs: [
+      { name: "courseId", type: "uint256" },
+      { name: "user", type: "address" },
+    ],
     outputs: [{ name: "", type: "bool" }],
-  },
-  {
-    name: "applyToBeInstructor",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [],
-    outputs: [],
   },
   {
     name: "getTotalCourses",
@@ -180,9 +177,85 @@ export const COURSE_PLATFORM_ABI = [
     stateMutability: "view",
     inputs: [{ name: "courseId", type: "uint256" }],
     outputs: [
-      { name: "instructor", type: "address" },
-      { name: "price", type: "uint256" },
+      {
+        name: "",
+        type: "tuple",
+        components: [
+          { name: "id", type: "uint256" },
+          { name: "author", type: "address" },
+          { name: "price", type: "uint256" },
+          { name: "isActive", type: "bool" },
+          { name: "createdAt", type: "uint256" },
+          { name: "totalSales", type: "uint256" },
+          { name: "studentCount", type: "uint256" },
+        ],
+      },
     ],
+  },
+  {
+    name: "getUserPurchasedCourses",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [{ name: "", type: "uint256[]" }],
+  },
+  {
+    name: "getAuthorCourses",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "author", type: "address" }],
+    outputs: [{ name: "", type: "uint256[]" }],
+  },
+  // 讲师相关
+  {
+    name: "isInstructor",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "instructorApplications",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "applyToBeInstructor",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: [],
+  },
+  {
+    name: "approveInstructor",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "instructor", type: "address" }],
+    outputs: [],
+  },
+  // 管理功能
+  {
+    name: "setPlatformFeeRate",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "newFeeRate", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    name: "platformFeeRate",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "toggleCourseStatus",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "courseId", type: "uint256" }],
+    outputs: [],
   },
   // Events
   {
@@ -190,7 +263,7 @@ export const COURSE_PLATFORM_ABI = [
     type: "event",
     inputs: [
       { indexed: true, name: "courseId", type: "uint256" },
-      { indexed: true, name: "instructor", type: "address" },
+      { indexed: true, name: "author", type: "address" },
       { name: "price", type: "uint256" },
     ],
   },
@@ -200,6 +273,7 @@ export const COURSE_PLATFORM_ABI = [
     inputs: [
       { indexed: true, name: "courseId", type: "uint256" },
       { indexed: true, name: "student", type: "address" },
+      { indexed: true, name: "author", type: "address" },
       { name: "price", type: "uint256" },
     ],
   },
@@ -207,6 +281,16 @@ export const COURSE_PLATFORM_ABI = [
     name: "InstructorApplicationSubmitted",
     type: "event",
     inputs: [{ indexed: true, name: "applicant", type: "address" }],
+  },
+  {
+    name: "InstructorApproved",
+    type: "event",
+    inputs: [{ indexed: true, name: "instructor", type: "address" }],
+  },
+  {
+    name: "PlatformFeeUpdated",
+    type: "event",
+    inputs: [{ name: "newFeeRate", type: "uint256" }],
   },
 ] as const;
 
