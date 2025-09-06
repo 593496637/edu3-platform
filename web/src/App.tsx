@@ -13,11 +13,12 @@ import SimpleGraphTest from "./components/SimpleGraphTest"; // 🚀 简单测试
 import HomePage from "./pages/HomePage";
 import ExchangePage from "./pages/ExchangePage";
 import InstructorPage from "./pages/InstructorPage";
+import CreateCoursePage from "./pages/CreateCoursePage"; // 🆕 创建课程页面
 import MyCoursesPage from "./pages/MyCoursesPage";
 import ProfilePage from "./pages/ProfilePage";
 import CourseDetailPage from "./pages/CourseDetailPage";
 import CourseLearnPage from "./pages/CourseLearnPage";
-import AdminPage from "./pages/AdminPage"; // 🔧 新增管理员页面
+import AdminPage from "./pages/AdminPage"; // 🔧 管理员页面
 
 import "@rainbow-me/rainbowkit/styles.css";
 
@@ -46,6 +47,7 @@ function App() {
                         <Route path="/" element={<HomePage />} />
                         <Route path="/exchange" element={<ExchangePage />} />
                         <Route path="/instructor" element={<InstructorPage />} />
+                        <Route path="/create-course" element={<CreateCoursePage />} />
                         <Route path="/my-courses" element={<MyCoursesPage />} />
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route path="/course/:id" element={<CourseDetailPage />} />
