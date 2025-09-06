@@ -315,15 +315,40 @@ export const formatEther = (amount: bigint) => {
   return (Number(amount) / 1e18).toFixed(4);
 };
 
-// 兑换计算工具
-export const calculateYDFromETH = (ethAmount: string): string => {
+// 价格转换工具函数
+export const convertETHToYD = (ethAmount: string): string => {
   const eth = parseFloat(ethAmount);
   return (eth * EXCHANGE_RATE).toString();
 };
 
-export const calculateETHFromYD = (ydAmount: string): string => {
+export const convertYDToETH = (ydAmount: string): string => {
   const yd = parseFloat(ydAmount);
   return (yd / EXCHANGE_RATE).toString();
+};
+
+// Wei单位转换
+export const convertETHToYDWei = (ethAmount: string): bigint => {
+  const eth = parseFloat(ethAmount);
+  const yd = eth * EXCHANGE_RATE;
+  return parseEther(yd.toString());
+};
+
+export const convertYDWeiToETH = (ydWei: bigint): string => {
+  const yd = Number(ydWei) / 1e18;
+  const eth = yd / EXCHANGE_RATE;
+  return eth.toFixed(4);
+};
+
+// 格式化显示价格（YD转ETH显示）
+export const formatCoursePrice = (ydWei: bigint): string => {
+  const ethValue = convertYDWeiToETH(ydWei);
+  const ydValue = Number(ydWei) / 1e18;
+  return `${ethValue} ETH (${ydValue.toFixed(0)} YD)`;
+};
+
+// 简化的价格显示（只显示ETH）
+export const formatPriceETH = (ydWei: bigint): string => {
+  return convertYDWeiToETH(ydWei);
 };
 
 // API 请求工具
@@ -358,10 +383,22 @@ export interface Course {
   chain_id: number;
   title: string;
   description: string;
+  content?: string;
   price: string;
   priceformatted: string;
   instructor_address: string;
   created_at: string;
+  updated_at?: string;
+  duration?: string;
+  difficulty?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+  category: string;
+  tags?: string[];
+  requirements?: string[];
+  objectives?: string[];
+  thumbnail?: string;
+  isActive?: boolean;
+  totalSales?: string;
+  studentCount?: number;
 }
 
 export interface Purchase {
@@ -375,4 +412,110 @@ export interface Purchase {
   title?: string;
   description?: string;
   instructor_address?: string;
+}
+
+// 课程创建请求接口
+export interface CreateCourseRequest {
+  title: string;
+  description: string;
+  content?: string;
+  price: string; // ETH单位，用于显示
+  duration?: string;
+  difficulty?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+  category: string;
+  tags?: string[];
+  requirements?: string[];
+  objectives?: string[];
+  thumbnail?: string;
+  onChainId: number;
+  instructorAddress: string;
+}
+
+// 验证函数
+export const validateCourseData = (data: Partial<CreateCourseRequest>): { isValid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+
+  if (!data.title?.trim()) {
+    errors.push('课程标题不能为空');
+  } else if (data.title.length < 5) {
+    errors.push('课程标题至少需要5个字符');
+  }
+
+  if (!data.description?.trim()) {
+    errors.push('课程描述不能为空');
+  } else if (data.description.length < 20) {
+    errors.push('课程描述至少需要20个字符');
+  }
+
+  if (!data.content?.trim()) {
+    errors.push('课程内容不能为空');
+  } else if (data.content.length < 50) {
+    errors.push('课程内容至少需要50个字符');
+  }
+
+  if (!data.price || parseFloat(data.price) <= 0) {
+    errors.push('请输入有效的课程价格');
+  } else if (parseFloat(data.price) > 100) {
+    errors.push('课程价格不能超过100 ETH');
+  }
+
+  if (!data.category) {
+    errors.push('请选择课程分类');
+  }
+
+  if (!data.instructorAddress) {
+    errors.push('讲师地址不能为空');
+  }
+
+  if (typeof data.onChainId !== 'number' || data.onChainId <= 0) {
+    errors.push('链上课程ID无效');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+};
+
+// 网络配置
+export const SUPPORTED_CHAINS = {
+  LOCALHOST: {
+    id: 31337,
+    name: 'Localhost',
+    rpcUrl: 'http://127.0.0.1:8545',
+    blockExplorer: 'http://localhost:8545',
+  },
+  SEPOLIA: {
+    id: 11155111,
+    name: 'Sepolia',
+    rpcUrl: 'https://sepolia.infura.io/v3/YOUR_PROJECT_ID',
+    blockExplorer: 'https://sepolia.etherscan.io',
+  },
+};
+
+// 获取当前网络的区块浏览器URL
+export const getBlockExplorerUrl = (chainId: number, txHash: string): string => {
+  switch (chainId) {
+    case 31337:
+      return `http://localhost:8545/tx/${txHash}`;
+    case 11155111:
+      return `https://sepolia.etherscan.io/tx/${txHash}`;
+    default:
+      return `https://etherscan.io/tx/${txHash}`;
+  }
+};
+
+// 课程状态枚举
+export enum CourseStatus {
+  DRAFT = 'draft',
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  DELETED = 'deleted',
+}
+
+// 用户角色枚举
+export enum UserRole {
+  STUDENT = 'student',
+  INSTRUCTOR = 'instructor',
+  ADMIN = 'admin',
 }
