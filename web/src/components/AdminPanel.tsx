@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { useAdminFunctions } from '../hooks/useAdminFunctions';
+import ApplicationMonitor from './ApplicationMonitor';
 
 const AdminPanel: React.FC = () => {
   const { isConnected } = useAccount();
@@ -60,24 +61,30 @@ const AdminPanel: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="rounded-md bg-red-50 border border-red-200 p-3">
+          <p className="text-red-800 text-sm">{error}</p>
+          <button 
+            onClick={() => setError(null)}
+            className="mt-2 text-xs text-red-600 hover:text-red-800"
+          >
+            ✕ 关闭
+          </button>
+        </div>
+      )}
+
+      {/* 申请监控组件 - 自动获取申请列表 */}
+      <ApplicationMonitor />
+
       <div className="rounded-lg bg-white p-6 shadow">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">管理员控制面板</h2>
-        
-        {error && (
-          <div className="mb-4 rounded-md bg-red-50 border border-red-200 p-3">
-            <p className="text-red-800 text-sm">{error}</p>
-            <button 
-              onClick={() => setError(null)}
-              className="mt-2 text-xs text-red-600 hover:text-red-800"
-            >
-              ✕ 关闭
-            </button>
-          </div>
-        )}
 
-        {/* 讲师申请审核区域 */}
+        {/* 手动审核区域 */}
         <div className="border-b border-gray-200 pb-6 mb-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">📋 讲师申请审核</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">✍️ 手动审核申请</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            如果上方的自动监控没有显示申请，您也可以手动输入申请人地址进行审核
+          </p>
           
           <div className="space-y-4">
             <div>
@@ -102,14 +109,14 @@ const AdminPanel: React.FC = () => {
                   : 'bg-green-600 text-white hover:bg-green-700'
               }`}
             >
-              {isProcessing ? '处理中...' : '✅ 批准申请'}
+              {isProcessing ? '处理中...' : '✅ 手动批准申请'}
             </button>
           </div>
 
           {/* 最近审核记录 */}
           {approvedApplications.length > 0 && (
             <div className="mt-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">最近批准的申请：</h4>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">最近手动批准的申请：</h4>
               <div className="space-y-1">
                 {approvedApplications.slice(-5).map((addr, index) => (
                   <div key={index} className="text-xs text-green-600 font-mono">
@@ -164,16 +171,15 @@ const AdminPanel: React.FC = () => {
       <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
         <h4 className="font-medium text-blue-800 mb-2">📖 使用说明</h4>
         <div className="text-sm text-blue-700 space-y-1">
-          <p><strong>审核流程：</strong></p>
-          <p>1. 用户在讲师页面提交申请</p>
-          <p>2. 申请记录保存在合约中</p>
-          <p>3. 管理员在此处输入用户地址并批准</p>
-          <p>4. 用户即可开始创建课程</p>
+          <p><strong>两种审核方式：</strong></p>
+          <p>1. <strong>自动监控</strong>：页面会自动获取链上申请事件，点击"批准"按钮即可</p>
+          <p>2. <strong>手动输入</strong>：如果自动监控没有显示，可以手动输入申请人地址</p>
           <br />
-          <p><strong>获取申请人地址：</strong></p>
-          <p>• 查看合约事件日志中的 InstructorApplicationSubmitted 事件</p>
-          <p>• 用户主动提供其钱包地址</p>
-          <p>• 使用区块链浏览器查看合约交互记录</p>
+          <p><strong>审核流程：</strong></p>
+          <p>• 用户在讲师页面提交申请</p>
+          <p>• 申请事件记录在区块链上</p>
+          <p>• 管理员在此页面审核申请</p>
+          <p>• 审核通过后用户即可创建课程</p>
         </div>
       </div>
     </div>
