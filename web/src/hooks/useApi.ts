@@ -180,7 +180,7 @@ export const useBalance = (address?: string) => {
   };
 };
 
-// 购买状态检查hook
+// 购买状态检查hook - 修复API路径
 export const usePurchaseStatus = (courseId?: number, address?: string) => {
   const [hasPurchased, setHasPurchased] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -192,7 +192,8 @@ export const usePurchaseStatus = (courseId?: number, address?: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await apiRequest(`/blockchain/purchased/${courseId}/${address}`);
+      // 修复: 添加缺失的 /courses 路径段
+      const response = await apiRequest(`/blockchain/courses/${courseId}/purchased/${address}`);
       if (response.success) {
         setHasPurchased(response.data.hasPurchased);
       }
@@ -283,6 +284,110 @@ export const usePurchaseVerification = () => {
 
   return {
     verifyPurchase,
+    isLoading,
+    error,
+  };
+};
+
+// 添加创建课程的 hook
+export const useCourseCreation = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const createCourse = async (courseData: {
+    title: string;
+    description: string;
+    content?: string;
+    price: string;
+    duration?: string;
+    difficulty?: string;
+    category: string;
+    tags?: string[];
+    requirements?: string[];
+    objectives?: string[];
+    thumbnail?: string;
+    onChainId?: number;
+  }) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await apiRequest('/courses', {
+        method: 'POST',
+        body: JSON.stringify(courseData),
+      });
+
+      if (response.success) {
+        return response.data;
+      }
+      return null;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create course';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateCourse = async (courseId: number, courseData: Partial<{
+    title: string;
+    description: string;
+    content: string;
+    price: string;
+    duration: string;
+    difficulty: string;
+    category: string;
+    tags: string[];
+    requirements: string[];
+    objectives: string[];
+    thumbnail: string;
+  }>) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await apiRequest(`/courses/${courseId}`, {
+        method: 'PUT',
+        body: JSON.stringify(courseData),
+      });
+
+      if (response.success) {
+        return response.data;
+      }
+      return null;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update course';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteCourse = async (courseId: number) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await apiRequest(`/courses/${courseId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.success) {
+        return response.data;
+      }
+      return null;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete course';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return {
+    createCourse,
+    updateCourse,
+    deleteCourse,
     isLoading,
     error,
   };
