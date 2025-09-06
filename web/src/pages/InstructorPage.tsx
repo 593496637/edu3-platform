@@ -1,20 +1,41 @@
+import React from 'react';
 import CourseList from "../components/CourseList";
+import InstructorApplication from "../components/InstructorApplication";
+import { useInstructorApplication } from "../hooks/useInstructorApplication";
 
 export default function InstructorPage() {
+  const { isInstructor } = useInstructorApplication();
+
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">讲师中心</h1>
           <p className="mt-2 text-gray-600">
-            申请成为讲师，创建和管理您的课程
+            {isInstructor ? '管理您的课程和收益' : '申请成为讲师，创建和管理您的课程'}
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           {/* 主要内容 */}
           <div className="lg:col-span-2">
-            <CourseList />
+            {isInstructor ? (
+              <div className="space-y-6">
+                <div className="rounded-lg bg-white p-6 shadow">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">我的课程</h2>
+                  <CourseList />
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg bg-white p-6 shadow">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">成为讲师</h2>
+                <p className="text-gray-600 mb-6">
+                  通过EDU3平台分享您的知识，获得YD代币收益。我们的平台基于区块链技术，
+                  确保收益分配的透明性和公平性。
+                </p>
+                <InstructorApplication />
+              </div>
+            )}
           </div>
 
           {/* 侧边栏 */}
@@ -40,6 +61,10 @@ export default function InstructorPage() {
                   <div className="h-2 w-2 rounded-full bg-green-500"></div>
                   <p>链上透明的收益分配</p>
                 </div>
+                <div className="flex items-center space-x-3">
+                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                  <p>平台仅收取2.5%手续费</p>
+                </div>
               </div>
             </div>
 
@@ -50,28 +75,66 @@ export default function InstructorPage() {
                 <p>• 申请后等待管理员审核</p>
                 <p>• 审核通过后即可创建课程</p>
                 <p>• 课程创建需要支付Gas费用</p>
+                <p>• 申请过程完全在链上进行</p>
               </div>
             </div>
 
+            {isInstructor && (
+              <div className="rounded-lg bg-green-50 border border-green-200 p-4">
+                <h4 className="font-medium text-green-800 mb-2">收益管理</h4>
+                <div className="text-sm text-green-700 space-y-1">
+                  <p>• YD代币自动到账</p>
+                  <p>• 可随时兑换为ETH</p>
+                  <p>• 支持AAVE质押获利(选修)</p>
+                  <p>• 收益完全透明可查</p>
+                </div>
+              </div>
+            )}
+
             <div className="rounded-lg bg-gray-50 p-4">
-              <h4 className="font-medium text-gray-800 mb-2">课程创建流程</h4>
+              <h4 className="font-medium text-gray-800 mb-2">
+                {isInstructor ? '课程管理流程' : '成为讲师流程'}
+              </h4>
               <div className="text-sm text-gray-600 space-y-2">
-                <div className="flex items-start space-x-3">
-                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">1</span>
-                  <p>通过讲师认证</p>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">2</span>
-                  <p>设置课程价格</p>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">3</span>
-                  <p>链上创建课程</p>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">4</span>
-                  <p>开始销售课程</p>
-                </div>
+                {isInstructor ? (
+                  <>
+                    <div className="flex items-start space-x-3">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-green-500 text-white text-xs flex items-center justify-center">1</span>
+                      <p>设置课程价格和内容</p>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-green-500 text-white text-xs flex items-center justify-center">2</span>
+                      <p>链上创建课程记录</p>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-green-500 text-white text-xs flex items-center justify-center">3</span>
+                      <p>学生购买课程</p>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-green-500 text-white text-xs flex items-center justify-center">4</span>
+                      <p>获得YD代币收益</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-start space-x-3">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">1</span>
+                      <p>连接Web3钱包</p>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">2</span>
+                      <p>提交讲师申请</p>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">3</span>
+                      <p>等待管理员审核</p>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">4</span>
+                      <p>开始创建课程</p>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
