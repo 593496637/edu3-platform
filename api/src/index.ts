@@ -6,13 +6,16 @@ import dotenv from 'dotenv';
 
 // Import routes
 import authRoutes from './routes/auth';
-import courseRoutes from './routes/courses';
+import courseRoutes from './routes/courses-db'; // 使用数据库版本
 import userRoutes from './routes/users';
 import blockchainRoutes from './routes/blockchain';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/requestLogger';
+
+// Import Prisma client
+import { prisma } from './lib/prisma';
 
 // Load environment variables
 dotenv.config();
@@ -44,13 +47,28 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Request logging
 app.use(requestLogger);
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-  });
+// Health check endpoint with database status
+app.get('/health', async (req, res) => {
+  try {
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1`;
+    
+    res.status(200).json({
+      status: 'healthy',
+      database: 'connected',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+    });
+  } catch (error) {
+    console.error('Database health check failed:', error);
+    res.status(503).json({
+      status: 'unhealthy',
+      database: 'disconnected',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Database connection failed'
+    });
+  }
 });
 
 // API routes
@@ -70,11 +88,29 @@ app.use('*', (req, res) => {
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('🔄 Gracefully shutting down...');
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('🔄 Gracefully shutting down...');
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 EDU3 API Server running on port ${PORT}`);
   console.log(`📖 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  console.log(`🗄️  Database: PostgreSQL with Prisma`);
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🔍 Prisma Studio: npx prisma studio`);
+  }
 });
 
 export default app;
