@@ -9,7 +9,11 @@
     "start": "node dist/index.js",
     "db:migrate": "npx prisma migrate dev",
     "db:generate": "npx prisma generate",
-    "db:seed": "npx tsx src/scripts/seed.ts"
+    "db:seed": "npx tsx prisma/seed.ts",
+    "db:studio": "npx prisma studio",
+    "db:reset": "npx prisma migrate reset --force",
+    "db:push": "npx prisma db push",
+    "postinstall": "prisma generate"
   },
   "keywords": ["web3", "education", "blockchain", "api"],
   "author": "EDU3 Team",
@@ -40,5 +44,8 @@
     "typescript": "^5.2.2",
     "nodemon": "^3.0.1",
     "tsx": "^4.6.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }
