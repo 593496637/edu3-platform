@@ -17,6 +17,7 @@ import MyCoursesPage from "./pages/MyCoursesPage";
 import ProfilePage from "./pages/ProfilePage";
 import CourseDetailPage from "./pages/CourseDetailPage";
 import CourseLearnPage from "./pages/CourseLearnPage";
+import AdminPage from "./pages/AdminPage"; // 🔧 新增管理员页面
 
 import "@rainbow-me/rainbowkit/styles.css";
 
@@ -49,6 +50,9 @@ function App() {
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route path="/course/:id" element={<CourseDetailPage />} />
                         <Route path="/course/:id/buy" element={<CourseDetailPage />} />
+                        
+                        {/* 🔧 管理员页面 */}
+                        <Route path="/admin" element={<AdminPage />} />
                         
                         {/* 简单演示页面 */}
                         <Route path="/demo" element={<div className="min-h-screen flex items-center justify-center">
