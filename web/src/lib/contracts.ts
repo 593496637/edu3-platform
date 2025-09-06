@@ -127,8 +127,16 @@ export const YD_TOKEN_ABI = [
   },
 ] as const;
 
-// Course Platform ABI (完整版本，包含讲师申请)
+// Course Platform ABI (完整版本，包含讲师申请和owner)
 export const COURSE_PLATFORM_ABI = [
+  // 所有权相关
+  {
+    name: "owner",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
   // 课程相关
   {
     name: "createCourse",
