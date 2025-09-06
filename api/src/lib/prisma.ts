@@ -1,21 +1,18 @@
 import { PrismaClient } from '@prisma/client';
 
 declare global {
-  var __prisma: PrismaClient | undefined;
+  var prisma: PrismaClient | undefined;
 }
 
-// PrismaClient singleton pattern to avoid multiple instances
-const prisma = globalThis.__prisma || new PrismaClient({
+export const prisma = globalThis.prisma || new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
 });
 
-if (process.env.NODE_ENV === 'development') {
-  globalThis.__prisma = prisma;
+if (process.env.NODE_ENV !== 'production') {
+  globalThis.prisma = prisma;
 }
 
-// Handle graceful shutdown
+// 优雅关闭数据库连接
 process.on('beforeExit', async () => {
   await prisma.$disconnect();
 });
-
-export { prisma };
