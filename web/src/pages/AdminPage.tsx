@@ -1,5 +1,6 @@
 import React from 'react';
 import AdminPanel from '../components/AdminPanel';
+import DebugApplicationTool from '../components/DebugApplicationTool';
 import { useAdminFunctions } from '../hooks/useAdminFunctions';
 
 export default function AdminPage() {
@@ -20,6 +21,11 @@ export default function AdminPage() {
           )}
         </div>
 
+        {/* 调试工具 */}
+        <div className="mb-8">
+          <DebugApplicationTool />
+        </div>
+
         <AdminPanel />
 
         {/* 管理员权限说明 */}
@@ -32,6 +38,7 @@ export default function AdminPage() {
                 <li>• 审核讲师申请</li>
                 <li>• 批准/拒绝申请</li>
                 <li>• 查看申请状态</li>
+                <li>• 调试申请问题</li>
               </ul>
             </div>
             <div className="space-y-2">
@@ -40,6 +47,7 @@ export default function AdminPage() {
                 <li>• 调整手续费率</li>
                 <li>• 管理课程状态</li>
                 <li>• 系统配置管理</li>
+                <li>• 深度事件搜索</li>
               </ul>
             </div>
           </div>
@@ -51,15 +59,26 @@ export default function AdminPage() {
           
           <div className="space-y-4">
             <div>
+              <h4 className="font-medium text-gray-800 mb-2">🔍 调试申请问题</h4>
+              <div className="text-sm text-gray-600 space-y-1">
+                <p>1. <strong>使用调试工具</strong>：在上方输入申请人地址进行专项调试</p>
+                <p>2. <strong>扩大搜索范围</strong>：如果申请较早，选择更大的区块范围</p>
+                <p>3. <strong>检查网络</strong>：确保申请时和现在连接的是同一个网络</p>
+                <p>4. <strong>查看事件日志</strong>：调试工具会显示所有相关的链上事件</p>
+              </div>
+            </div>
+
+            <div>
               <h4 className="font-medium text-gray-800 mb-2">如何获取申请人地址？</h4>
               <div className="text-sm text-gray-600 space-y-1">
-                <p>方法1: 查看区块链浏览器的合约事件</p>
+                <p>方法1: 使用上方的调试工具扩大搜索范围</p>
+                <p>方法2: 查看区块链浏览器的合约事件</p>
                 <p className="ml-4">• 访问 Etherscan 等浏览器</p>
                 <p className="ml-4">• 搜索课程平台合约地址</p>
                 <p className="ml-4">• 查看 "Events" 标签</p>
                 <p className="ml-4">• 找到 "InstructorApplicationSubmitted" 事件</p>
                 
-                <p className="mt-2">方法2: 用户主动提供</p>
+                <p className="mt-2">方法3: 用户主动提供</p>
                 <p className="ml-4">• 让申请人提供其钱包地址</p>
                 <p className="ml-4">• 在管理员面板中输入并审核</p>
               </div>
