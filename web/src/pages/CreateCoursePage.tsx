@@ -3,18 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi';
 import { CONTRACTS, COURSE_PLATFORM_ABI } from '../lib/contracts';
 
-// 导入分离的工具函数和组件
-import { 
-  validateCourseForm, 
-  hasValidationErrors,
-  type CourseFormData,
-  type ValidationErrors 
-} from '../utils/courseValidation';
-import { 
-  convertPriceToWei, 
-  parseCourseCreatedEvent, 
-  getErrorMessage 
-} from '../utils/blockchainUtils';
+// 导入Hook和组件
+import { useCourseForm } from '../hooks/useCourseForm';
+import { convertPriceToWei, parseCourseCreatedEvent, getErrorMessage } from '../utils/blockchainUtils';
 import CreateCourseForm from '../components/CreateCourseForm';
 import CreationProgress from '../components/CreationProgress';
 
@@ -30,60 +21,29 @@ export default function CreateCoursePage() {
     hash,
   });
 
-  // 表单数据状态
-  const [formData, setFormData] = useState<CourseFormData>({
-    title: '',
-    description: '',
-    content: '',
-    price: '',
-    category: '',
-    duration: '',
-    difficulty: 'beginner',
-  });
+  // 使用自定义Hook管理表单
+  const { formData, errors, handleInputChange, validateForm, clearErrors } = useCourseForm();
 
-  // 其他状态
+  // 状态管理
   const [step, setStep] = useState<CreationStep>('form');
-  const [errors, setErrors] = useState<ValidationErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [isApiLoading, setIsApiLoading] = useState(false);
 
   const categories = ['Development', 'Design', 'Business', 'Security', 'DeFi', 'NFT'];
 
-  // 表单输入处理
-  const handleInputChange = (field: keyof CourseFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // 清除对应字段的错误
-    if (errors[field]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
-    }
-  };
-
-  // 表单验证
-  const validateForm = (): boolean => {
-    const validationErrors = validateCourseForm(formData);
-    setErrors(validationErrors);
-    return !hasValidationErrors(validationErrors);
-  };
-
-  // 保存课程到API
+  // API保存函数
   const saveCourseToAPI = async (courseId: number) => {
     try {
       setIsApiLoading(true);
       
-      // 这里调用你的API来保存课程详细信息
       const courseData = {
         ...formData,
         onChainId: courseId,
         instructorAddress: address,
       };
 
-      // 模拟API调用（替换为实际的API调用）
+      // 模拟API调用
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      
       console.log('课程数据已保存:', courseData);
       return true;
     } catch (error) {
@@ -94,7 +54,7 @@ export default function CreateCoursePage() {
     }
   };
 
-  // 创建课程
+  // 创建课程主函数
   const handleCreateCourse = async () => {
     if (!isConnected || !address) {
       setError('请先连接您的Web3钱包');
@@ -133,9 +93,7 @@ export default function CreateCoursePage() {
       await saveCourseToAPI(courseId);
       
       setStep('success');
-      setTimeout(() => {
-        navigate('/instructor');
-      }, 3000);
+      setTimeout(() => navigate('/instructor'), 3000);
     } catch (error) {
       console.error('处理交易成功事件失败:', error);
       setError('课程在区块链上创建成功，但保存详细信息失败');
@@ -146,17 +104,17 @@ export default function CreateCoursePage() {
   // 重试处理
   const handleRetry = () => {
     setError(null);
+    clearErrors();
     setStep('form');
   };
 
-  // 监听区块链交易确认
+  // 副作用监听
   useEffect(() => {
     if (isConfirmed && hash) {
       handleTransactionSuccess(hash);
     }
   }, [isConfirmed, hash]);
 
-  // 监听错误
   useEffect(() => {
     if (writeError) {
       setError(getErrorMessage(writeError));
@@ -171,7 +129,7 @@ export default function CreateCoursePage() {
     }
   }, [confirmError]);
 
-  // 钱包未连接提示
+  // 钱包未连接
   if (!isConnected) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -203,7 +161,7 @@ export default function CreateCoursePage() {
     );
   }
 
-  // 主表单
+  // 主表单界面
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-8">
@@ -241,7 +199,6 @@ export default function CreateCoursePage() {
               onInputChange={handleInputChange}
             />
 
-            {/* 提交按钮 */}
             <div className="mt-6">
               <button
                 type="submit"
