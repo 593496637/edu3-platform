@@ -34,11 +34,154 @@ const COURSE_PLATFORM_ABI = [
     "outputs": [{"internalType": "address", "name": "", "type": "address"}],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getTotalCourses",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "courseId", "type": "uint256"}],
+    "name": "getCourse",
+    "outputs": [
+      {"internalType": "address", "name": "instructor", "type": "address"},
+      {"internalType": "uint256", "name": "price", "type": "uint256"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
   }
 ];
 
+// 模拟课程数据 (实际项目中应该从数据库获取)
+const mockCourses = [
+  {
+    id: 1,
+    chain_id: 1,
+    title: "Web3开发基础",
+    description: "学习Web3开发的基础知识，包括以太坊、智能合约和DApp开发。",
+    price: "1000000000000000000", // 1 ETH in wei
+    priceformatted: "1.0",
+    instructor_address: "0x1234567890123456789012345678901234567890",
+    created_at: "2024-01-01T00:00:00Z"
+  },
+  {
+    id: 2,
+    chain_id: 2,
+    title: "智能合约安全",
+    description: "深入了解智能合约安全最佳实践，学习如何编写安全的智能合约。",
+    price: "2000000000000000000", // 2 ETH in wei
+    priceformatted: "2.0",
+    instructor_address: "0x2345678901234567890123456789012345678901",
+    created_at: "2024-01-02T00:00:00Z"
+  },
+  {
+    id: 3,
+    chain_id: 3,
+    title: "DeFi协议开发",
+    description: "学习去中心化金融(DeFi)协议的开发，包括AMM、借贷协议等。",
+    price: "3000000000000000000", // 3 ETH in wei
+    priceformatted: "3.0",
+    instructor_address: "0x3456789012345678901234567890123456789012",
+    created_at: "2024-01-03T00:00:00Z"
+  }
+];
+
+// 获取所有课程列表
+router.get('/', async (req, res) => {
+  try {
+    // 在实际项目中，这里应该从数据库查询课程
+    // 这里使用模拟数据
+    
+    // 可选：从区块链获取最新的课程数据
+    try {
+      const rpcUrl = process.env.RPC_URL || 'https://sepolia.infura.io/v3/YOUR_INFURA_KEY';
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      const contract = new ethers.Contract(
+        CONTRACTS.CoursePlatform,
+        COURSE_PLATFORM_ABI,
+        provider
+      );
+
+      // 获取总课程数
+      const totalCourses = await contract.getTotalCourses();
+      console.log(`Total courses on blockchain: ${totalCourses}`);
+      
+      // 这里可以根据需要从区块链获取更多课程信息
+    } catch (blockchainError) {
+      console.warn('Failed to fetch from blockchain, using mock data:', blockchainError.message);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        courses: mockCourses,
+        total: mockCourses.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Failed to fetch courses:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch courses'
+    });
+  }
+});
+
+// 获取单个课程详情
+router.get('/:courseId', async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const courseIdNum = parseInt(courseId);
+
+    // 从模拟数据查找课程
+    const course = mockCourses.find(c => c.id === courseIdNum);
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        error: 'Course not found'
+      });
+    }
+
+    // 可选：从区块链获取最新的价格信息
+    try {
+      const rpcUrl = process.env.RPC_URL || 'https://sepolia.infura.io/v3/YOUR_INFURA_KEY';
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      const contract = new ethers.Contract(
+        CONTRACTS.CoursePlatform,
+        COURSE_PLATFORM_ABI,
+        provider
+      );
+
+      const [instructor, price] = await contract.getCourse(BigInt(course.chain_id));
+      
+      // 更新课程信息
+      course.instructor_address = instructor;
+      course.price = price.toString();
+      course.priceformatted = ethers.formatEther(price);
+    } catch (blockchainError) {
+      console.warn('Failed to fetch course from blockchain:', blockchainError.message);
+    }
+
+    res.json({
+      success: true,
+      data: course
+    });
+
+  } catch (error) {
+    console.error('Failed to fetch course:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch course'
+    });
+  }
+});
+
 // 验证用户是否购买了课程
-router.post('/courses/:courseId/verify-access', async (req, res) => {
+router.post('/:courseId/verify-access', async (req, res) => {
   try {
     const { courseId } = req.params;
     const { userAddress, signature } = req.body;
@@ -98,7 +241,7 @@ router.post('/courses/:courseId/verify-access', async (req, res) => {
 });
 
 // 获取受保护的课程内容
-router.get('/courses/:courseId/content', async (req, res) => {
+router.get('/:courseId/content', async (req, res) => {
   try {
     const { courseId } = req.params;
     const { userAddress } = req.query;
