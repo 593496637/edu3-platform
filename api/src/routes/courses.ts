@@ -1,40 +1,14 @@
-import express from 'express';
+import { Router } from 'express';
 import { ethers } from 'ethers';
+import { prisma } from '../lib/prisma';
+import { AppError, asyncHandler } from '../middleware/errorHandler';
+import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 
-const router = express.Router();
+const router = Router();
 
-// 合约配置 (直接在这里定义，避免导入问题)
-const CONTRACTS = {
-  YDToken: '0xcD274B0B4cf04FfB5E6f1E17f8a62239a9564173',
-  CoursePlatform: '0xD3Ff74DD494471f55B204CB084837D1a7f184092',
-};
-
-// 简化的 Course Platform ABI (只包含需要的函数)
-const COURSE_PLATFORM_ABI = [
-  {
-    "inputs": [
-      {"internalType": "uint256", "name": "courseId", "type": "uint256"},
-      {"internalType": "address", "name": "user", "type": "address"}
-    ],
-    "name": "hasPurchasedCourse",
-    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [{"internalType": "uint256", "name": "courseId", "type": "uint256"}],
-    "name": "getCoursePrice",
-    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [{"internalType": "uint256", "name": "courseId", "type": "uint256"}],
-    "name": "getCourseAuthor",
-    "outputs": [{"internalType": "address", "name": "", "type": "address"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
+// 智能合约配置
+const CONTRACT_ADDRESS = '0xD3Ff74DD494471f55B204CB084837D1a7f184092';
+const CONTRACT_ABI = [
   {
     "inputs": [],
     "name": "getTotalCourses",
@@ -43,428 +17,259 @@ const COURSE_PLATFORM_ABI = [
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "uint256", "name": "courseId", "type": "uint256"}],
-    "name": "getCourse",
+    "inputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "name": "courses",
     "outputs": [
       {"internalType": "address", "name": "instructor", "type": "address"},
-      {"internalType": "uint256", "name": "price", "type": "uint256"}
+      {"internalType": "string", "name": "title", "type": "string"},
+      {"internalType": "string", "name": "description", "type": "string"},
+      {"internalType": "uint256", "name": "price", "type": "uint256"},
+      {"internalType": "bool", "name": "active", "type": "bool"}
     ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "", "type": "address"}],
+    "name": "isInstructor",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
     "stateMutability": "view",
     "type": "function"
   }
 ];
 
-// 模拟课程数据 (实际项目中应该从数据库获取)
-let mockCourses = [
-  {
-    id: 1,
-    chain_id: 1,
-    title: "Web3开发基础",
-    description: "学习Web3开发的基础知识，包括以太坊、智能合约和DApp开发。",
-    price: "1000000000000000000", // 1 ETH in wei
-    priceformatted: "1.0",
-    instructor_address: "0x1234567890123456789012345678901234567890",
-    created_at: "2024-01-01T00:00:00Z"
-  },
-  {
-    id: 2,
-    chain_id: 2,
-    title: "智能合约安全",
-    description: "深入了解智能合约安全最佳实践，学习如何编写安全的智能合约。",
-    price: "2000000000000000000", // 2 ETH in wei
-    priceformatted: "2.0",
-    instructor_address: "0x2345678901234567890123456789012345678901",
-    created_at: "2024-01-02T00:00:00Z"
-  },
-  {
-    id: 3,
-    chain_id: 3,
-    title: "DeFi协议开发",
-    description: "学习去中心化金融(DeFi)协议的开发，包括AMM、借贷协议等。",
-    price: "3000000000000000000", // 3 ETH in wei
-    priceformatted: "3.0",
-    instructor_address: "0x3456789012345678901234567890123456789012",
-    created_at: "2024-01-03T00:00:00Z"
-  }
-];
+// RPC 提供者
+const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'http://localhost:8545');
+const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
 
-// 获取所有课程列表
-router.get('/', async (req, res) => {
+// 获取课程列表 - 从区块链获取真实数据
+router.get('/', asyncHandler(async (req, res) => {
   try {
-    // 在实际项目中，这里应该从数据库查询课程
-    // 这里使用模拟数据
+    console.log('🔍 Fetching courses from blockchain...');
     
-    // 可选：从区块链获取最新的课程数据
-    try {
-      const rpcUrl = process.env.RPC_URL || 'https://sepolia.infura.io/v3/YOUR_INFURA_KEY';
-      const provider = new ethers.JsonRpcProvider(rpcUrl);
-      const contract = new ethers.Contract(
-        CONTRACTS.CoursePlatform,
-        COURSE_PLATFORM_ABI,
-        provider
-      );
-
-      // 获取总课程数
-      const totalCourses = await contract.getTotalCourses();
-      console.log(`Total courses on blockchain: ${totalCourses}`);
-      
-      // 这里可以根据需要从区块链获取更多课程信息
-    } catch (blockchainError) {
-      console.warn('Failed to fetch from blockchain, using mock data:', blockchainError.message);
+    // 从智能合约获取课程总数
+    const totalCourses = await contract.getTotalCourses();
+    const totalCoursesNum = Number(totalCourses);
+    
+    console.log(`Found ${totalCoursesNum} courses on-chain`);
+    
+    if (totalCoursesNum === 0) {
+      return res.json({
+        success: true,
+        data: {
+          courses: [],
+          total: 0,
+          source: 'blockchain'
+        }
+      });
     }
-
+    
+    // 获取每个课程的详细信息
+    const courses = [];
+    for (let i = 1; i <= totalCoursesNum; i++) {
+      try {
+        const courseData = await contract.courses(i);
+        
+        // 检查课程是否激活
+        if (!courseData.active) {
+          console.log(`Course ${i} is inactive, skipping`);
+          continue;
+        }
+        
+        // 获取讲师信息
+        let instructorInfo = null;
+        try {
+          const instructor = await prisma.user.findUnique({
+            where: { address: courseData.instructor.toLowerCase() },
+            select: { username: true, bio: true }
+          });
+          instructorInfo = instructor;
+        } catch (dbError) {
+          console.warn(`Failed to fetch instructor info for ${courseData.instructor}:`, dbError);
+        }
+        
+        courses.push({
+          id: i,
+          chainId: i,
+          title: courseData.title,
+          description: courseData.description,
+          price: courseData.price.toString(),
+          priceInEth: ethers.formatEther(courseData.price),
+          instructor: courseData.instructor,
+          instructorInfo: instructorInfo,
+          active: courseData.active,
+          source: 'blockchain'
+        });
+        
+      } catch (courseError) {
+        console.error(`Error fetching course ${i}:`, courseError);
+      }
+    }
+    
     res.json({
       success: true,
       data: {
-        courses: mockCourses,
-        total: mockCourses.length
+        courses,
+        total: courses.length,
+        totalOnChain: totalCoursesNum,
+        source: 'blockchain'
       }
     });
-
+    
   } catch (error) {
-    console.error('Failed to fetch courses:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch courses'
-    });
+    console.error('❌ Error fetching courses from blockchain:', error);
+    throw new AppError('Failed to fetch courses from blockchain', 500);
   }
-});
+}));
 
-// 获取单个课程详情
-router.get('/:courseId', async (req, res) => {
+// 获取单个课程详情 - 从区块链获取
+router.get('/:courseId', asyncHandler(async (req, res) => {
   try {
     const { courseId } = req.params;
     const courseIdNum = parseInt(courseId);
-
-    // 从模拟数据查找课程
-    const course = mockCourses.find(c => c.id === courseIdNum);
-
-    if (!course) {
-      return res.status(404).json({
-        success: false,
-        error: 'Course not found'
-      });
+    
+    if (isNaN(courseIdNum) || courseIdNum <= 0) {
+      throw new AppError('Invalid course ID', 400);
     }
-
-    // 可选：从区块链获取最新的价格信息
+    
+    console.log(`🔍 Fetching course ${courseIdNum} from blockchain...`);
+    
+    // 从智能合约获取课程信息
+    const courseData = await contract.courses(courseIdNum);
+    
+    if (!courseData.active) {
+      throw new AppError('Course not found or inactive', 404);
+    }
+    
+    // 获取讲师信息
+    let instructorInfo = null;
     try {
-      const rpcUrl = process.env.RPC_URL || 'https://sepolia.infura.io/v3/YOUR_INFURA_KEY';
-      const provider = new ethers.JsonRpcProvider(rpcUrl);
-      const contract = new ethers.Contract(
-        CONTRACTS.CoursePlatform,
-        COURSE_PLATFORM_ABI,
-        provider
-      );
-
-      const [instructor, price] = await contract.getCourse(BigInt(course.chain_id));
-      
-      // 更新课程信息
-      course.instructor_address = instructor;
-      course.price = price.toString();
-      course.priceformatted = ethers.formatEther(price);
-    } catch (blockchainError) {
-      console.warn('Failed to fetch course from blockchain:', blockchainError.message);
+      const instructor = await prisma.user.findUnique({
+        where: { address: courseData.instructor.toLowerCase() },
+        select: { 
+          username: true, 
+          bio: true, 
+          email: true,
+          createdAt: true 
+        }
+      });
+      instructorInfo = instructor;
+    } catch (dbError) {
+      console.warn(`Failed to fetch instructor info:`, dbError);
     }
-
+    
+    // 获取课程购买统计
+    let enrollmentCount = 0;
+    try {
+      enrollmentCount = await prisma.enrollment.count({
+        where: { 
+          course: { 
+            onChainId: courseIdNum 
+          }
+        }
+      });
+    } catch (dbError) {
+      console.warn('Failed to fetch enrollment count:', dbError);
+    }
+    
+    const course = {
+      id: courseIdNum,
+      chainId: courseIdNum,
+      title: courseData.title,
+      description: courseData.description,
+      price: courseData.price.toString(),
+      priceInEth: ethers.formatEther(courseData.price),
+      instructor: courseData.instructor,
+      instructorInfo: instructorInfo,
+      active: courseData.active,
+      enrollmentCount: enrollmentCount,
+      source: 'blockchain'
+    };
+    
     res.json({
       success: true,
       data: course
     });
-
+    
   } catch (error) {
-    console.error('Failed to fetch course:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch course'
-    });
-  }
-});
-
-// 创建课程
-router.post('/', async (req, res) => {
-  try {
-    const {
-      title,
-      description,
-      content,
-      price,
-      duration,
-      difficulty,
-      category,
-      tags,
-      requirements,
-      objectives,
-      thumbnail,
-      onChainId
-    } = req.body;
-
-    // 验证必填字段
-    if (!title || !description || !price || !category) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: title, description, price, category'
-      });
+    console.error('❌ Error fetching course:', error);
+    if (error.message.includes('call revert exception')) {
+      throw new AppError('Course not found on blockchain', 404);
     }
-
-    // 在实际项目中，这里应该:
-    // 1. 验证用户是否为讲师
-    // 2. 创建课程记录到数据库
-    // 3. 可选：同时在区块链上创建课程
-
-    // 临时实现：添加到模拟数据
-    const newCourse = {
-      id: mockCourses.length + 1,
-      chain_id: onChainId || mockCourses.length + 1,
-      title,
-      description,
-      content: content || description,
-      price: price.toString(),
-      priceformatted: (parseFloat(price) / 1e18).toString(), // 假设价格以wei为单位
-      duration: duration || "待定",
-      difficulty: difficulty || "BEGINNER",
-      category: category || "Development",
-      tags: tags || [],
-      requirements: requirements || [],
-      objectives: objectives || [],
-      thumbnail: thumbnail || "https://via.placeholder.com/300x200",
-      instructor_address: "0x1234567890123456789012345678901234567890", // 这里应该从JWT token获取
-      created_at: new Date().toISOString(),
-      enrollmentCount: 0,
-      reviewCount: 0
-    };
-
-    // 添加到模拟数据数组
-    mockCourses.push(newCourse);
-
-    res.status(201).json({
-      success: true,
-      message: 'Course created successfully',
-      data: newCourse
-    });
-
-  } catch (error) {
-    console.error('Failed to create course:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create course'
-    });
+    throw error;
   }
-});
+}));
 
-// 更新课程信息
-router.put('/:courseId', async (req, res) => {
+// 检查用户是否已购买课程
+router.get('/:courseId/access', 
+  authenticateToken,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    try {
+      const { courseId } = req.params;
+      const courseIdNum = parseInt(courseId);
+      
+      // 检查数据库中的购买记录
+      const enrollment = await prisma.enrollment.findFirst({
+        where: {
+          userId: req.user!.id,
+          course: {
+            onChainId: courseIdNum
+          }
+        },
+        include: {
+          course: true
+        }
+      });
+      
+      res.json({
+        success: true,
+        data: {
+          hasAccess: !!enrollment,
+          enrollment: enrollment
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Error checking course access:', error);
+      throw new AppError('Failed to check course access', 500);
+    }
+  })
+);
+
+// 获取课程统计信息
+router.get('/:courseId/stats', asyncHandler(async (req, res) => {
   try {
     const { courseId } = req.params;
     const courseIdNum = parseInt(courseId);
-
-    const updateData = req.body;
-
-    // 查找要更新的课程
-    const courseIndex = mockCourses.findIndex(c => c.id === courseIdNum);
-
-    if (courseIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        error: 'Course not found'
-      });
-    }
-
-    // 更新课程数据
-    mockCourses[courseIndex] = {
-      ...mockCourses[courseIndex],
-      ...updateData,
-      updated_at: new Date().toISOString()
-    };
-
-    res.json({
-      success: true,
-      message: 'Course updated successfully',
-      data: mockCourses[courseIndex]
-    });
-
-  } catch (error) {
-    console.error('Failed to update course:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update course'
-    });
-  }
-});
-
-// 删除课程
-router.delete('/:courseId', async (req, res) => {
-  try {
-    const { courseId } = req.params;
-    const courseIdNum = parseInt(courseId);
-
-    const courseIndex = mockCourses.findIndex(c => c.id === courseIdNum);
-
-    if (courseIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        error: 'Course not found'
-      });
-    }
-
-    // 从数组中移除课程
-    const deletedCourse = mockCourses.splice(courseIndex, 1)[0];
-
-    res.json({
-      success: true,
-      message: 'Course deleted successfully',
-      data: deletedCourse
-    });
-
-  } catch (error) {
-    console.error('Failed to delete course:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete course'
-    });
-  }
-});
-
-// 验证用户是否购买了课程
-router.post('/:courseId/verify-access', async (req, res) => {
-  try {
-    const { courseId } = req.params;
-    const { userAddress, signature } = req.body;
-
-    if (!userAddress || !courseId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required parameters'
-      });
-    }
-
-    // 1. 连接到区块链验证购买状态
-    const rpcUrl = process.env.RPC_URL || 'https://sepolia.infura.io/v3/YOUR_INFURA_KEY';
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
-    const contract = new ethers.Contract(
-      CONTRACTS.CoursePlatform,
-      COURSE_PLATFORM_ABI,
-      provider
-    );
-
-    // 2. 查询链上购买状态
-    const hasPurchased = await contract.hasPurchasedCourse(
-      BigInt(courseId),
-      userAddress
-    );
-
-    if (!hasPurchased) {
-      return res.status(403).json({
-        success: false,
-        error: 'Course not purchased',
-        needsPurchase: true
-      });
-    }
-
-    // 3. 生成访问令牌 (简单版本)
-    const accessToken = ethers.keccak256(
-      ethers.toUtf8Bytes(`${userAddress}-${courseId}-${Date.now()}`)
-    );
-
+    
+    // 从数据库获取统计信息
+    const [enrollmentCount, averageRating, reviewCount] = await Promise.all([
+      prisma.enrollment.count({
+        where: { course: { onChainId: courseIdNum } }
+      }),
+      prisma.review.aggregate({
+        where: { course: { onChainId: courseIdNum } },
+        _avg: { rating: true }
+      }),
+      prisma.review.count({
+        where: { course: { onChainId: courseIdNum } }
+      })
+    ]);
+    
     res.json({
       success: true,
       data: {
-        hasAccess: true,
-        accessToken,
-        courseId,
-        userAddress
+        enrollmentCount,
+        averageRating: averageRating._avg.rating || 0,
+        reviewCount,
+        source: 'database'
       }
     });
-
+    
   } catch (error) {
-    console.error('Course access verification failed:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error'
-    });
+    console.error('❌ Error fetching course stats:', error);
+    throw new AppError('Failed to fetch course statistics', 500);
   }
-});
-
-// 获取受保护的课程内容
-router.get('/:courseId/content', async (req, res) => {
-  try {
-    const { courseId } = req.params;
-    const { userAddress } = req.query;
-    const authToken = req.headers.authorization?.replace('Bearer ', '');
-
-    if (!userAddress || !authToken) {
-      return res.status(401).json({
-        success: false,
-        error: 'Unauthorized access'
-      });
-    }
-
-    // 重新验证购买状态 (防止伪造)
-    const rpcUrl = process.env.RPC_URL || 'https://sepolia.infura.io/v3/YOUR_INFURA_KEY';
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
-    const contract = new ethers.Contract(
-      CONTRACTS.CoursePlatform,
-      COURSE_PLATFORM_ABI,
-      provider
-    );
-
-    const hasPurchased = await contract.hasPurchasedCourse(
-      BigInt(courseId),
-      userAddress
-    );
-
-    if (!hasPurchased) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied - course not purchased'
-      });
-    }
-
-    // 返回课程内容 (从数据库或文件系统)
-    const courseContent = {
-      id: courseId,
-      title: `Web3开发基础课程 ${courseId}`,
-      videoUrl: `https://example.com/videos/course-${courseId}.mp4`,
-      materials: [
-        {
-          type: 'pdf',
-          title: '课程讲义',
-          url: `https://example.com/materials/course-${courseId}-slides.pdf`
-        },
-        {
-          type: 'code',
-          title: '示例代码',
-          url: `https://github.com/example/course-${courseId}-code`
-        }
-      ],
-      lessons: [
-        {
-          id: 1,
-          title: 'Web3概述和区块链基础',
-          videoUrl: `https://example.com/videos/course-${courseId}-lesson-1.mp4`,
-          duration: '45分钟'
-        },
-        {
-          id: 2,
-          title: '以太坊网络和智能合约介绍',
-          videoUrl: `https://example.com/videos/course-${courseId}-lesson-2.mp4`,
-          duration: '60分钟'
-        },
-        // 更多课程内容...
-      ]
-    };
-
-    res.json({
-      success: true,
-      data: courseContent
-    });
-
-  } catch (error) {
-    console.error('Failed to fetch course content:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to load course content'
-    });
-  }
-});
+}));
 
 export default router;

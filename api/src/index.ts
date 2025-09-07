@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 
 // Import routes
 import authRoutes from './routes/auth';
-import courseRoutes from './routes/courses-db'; // 使用数据库版本
+import courseRoutes from './routes/courses'; // 使用区块链版本
 import userRoutes from './routes/users';
 import blockchainRoutes from './routes/blockchain';
 

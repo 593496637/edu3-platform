@@ -46,6 +46,39 @@ router.get('/balance/:address',
   })
 );
 
+// Check if address has applied to be an instructor
+router.get('/instructor-application/:address',
+  param('address').custom((value) => {
+    if (!isValidAddress(value)) {
+      throw new Error('Valid Ethereum address required');
+    }
+    return true;
+  }),
+  asyncHandler(async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      throw new AppError('Validation failed', 400);
+    }
+
+    const { address } = req.params;
+    const contract = getCoursePlatformContract();
+
+    try {
+      const hasApplied = await contract.instructorApplications(address);
+      
+      res.json({
+        success: true,
+        data: {
+          address,
+          hasApplied,
+        },
+      });
+    } catch (error) {
+      throw new AppError('Failed to check application status', 500);
+    }
+  })
+);
+
 // Check if address is an instructor
 router.get('/instructor/:address',
   param('address').custom((value) => {

@@ -40,8 +40,4 @@ CREATE INDEX IF NOT EXISTS idx_purchases_user_address ON purchases(user_address)
 CREATE INDEX IF NOT EXISTS idx_purchases_course_chain_id ON purchases(course_chain_id);
 CREATE INDEX IF NOT EXISTS idx_purchases_tx_hash ON purchases(tx_hash);
 
--- 插入示例数据
-INSERT INTO courses (chain_id, title, description, price, instructor_address) VALUES
-(1, 'Web3开发基础', '学习区块链和智能合约开发的基础知识', '100000000000000000000', '0x1234567890123456789012345678901234567890'),
-(2, '智能合约安全', '深入学习智能合约安全最佳实践', '200000000000000000000', '0x2345678901234567890123456789012345678901')
-ON CONFLICT (chain_id) DO NOTHING;
+-- 不插入任何示例数据，只保留表结构
