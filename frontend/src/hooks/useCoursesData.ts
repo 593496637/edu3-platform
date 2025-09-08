@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useAccount, useReadContract, useReadContracts } from 'wagmi'
+import { useAccount, useReadContract } from 'wagmi'
 import { CONTRACTS } from '../lib/contracts'
+import { graphqlRequest, GET_COURSES, GET_USER_PURCHASES, type CourseCreatedEvent, type CoursePurchasedEvent } from '../lib/graphql'
 import type { Course } from '../types'
 
 export function useCoursesData() {
@@ -8,12 +9,6 @@ export function useCoursesData() {
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  // 获取课程总数
-  const { data: courseCount, isError: courseCountError } = useReadContract({
-    ...CONTRACTS.COURSE_PLATFORM,
-    functionName: 'getCourseCount'
-  })
 
   // 获取用户购买的课程
   const { data: purchasedCourses } = useReadContract({
@@ -24,52 +19,54 @@ export function useCoursesData() {
 
   useEffect(() => {
     const fetchCourses = async () => {
-      if (courseCountError) {
-        setError('无法连接到智能合约，请检查网络连接')
-        setLoading(false)
-        return
-      }
-
-      if (!courseCount || courseCount === 0n) {
-        setCourses([])
-        setLoading(false)
-        return
-      }
-
       try {
-        // 准备批量读取合约数据
-        const courseContracts = []
-        for (let i = 1; i <= Number(courseCount); i++) {
-          courseContracts.push({
-            ...CONTRACTS.COURSE_PLATFORM,
-            functionName: 'getCourse',
-            args: [BigInt(i)]
-          })
+        // 使用 GraphQL 从 The Graph 获取课程数据
+        const data = await graphqlRequest(GET_COURSES, {
+          first: 100,
+          orderBy: "blockTimestamp",
+          orderDirection: "desc"
+        })
+
+        if (!data || !data.courseCreateds) {
+          setCourses([])
+          setLoading(false)
+          return
         }
 
-        // 使用 API 从后端获取真实的课程数据（后端从区块链获取）
-        const response = await fetch('/api/courses')
-        const result = await response.json()
-        
-        if (!result.success) {
-          throw new Error(result.message || '获取课程数据失败')
+        // 如果用户已连接钱包，同时获取用户购买记录
+        let userPurchases: CoursePurchasedEvent[] = []
+        if (address) {
+          try {
+            const purchaseData = await graphqlRequest(GET_USER_PURCHASES, {
+              user: address.toLowerCase()
+            })
+            userPurchases = purchaseData.coursePurchaseds || []
+          } catch (purchaseError) {
+            console.warn('获取用户购买记录失败:', purchaseError)
+          }
         }
-        
-        // 转换 API 数据为前端格式
-        const realCourses: Course[] = result.data.courses.map((course: any) => ({
-          id: course.id,
-          title: course.title,
-          description: course.description,
-          price: BigInt(course.price),
-          author: course.instructor as `0x${string}`,
-          active: course.active,
-          purchased: purchasedCourses ? purchasedCourses.some((id: bigint) => id === BigInt(course.id)) : false
-        }))
+
+        // 转换 GraphQL 数据为前端格式
+        const realCourses: Course[] = data.courseCreateds.map((courseEvent: CourseCreatedEvent) => {
+          const isPurchased = userPurchases.some(
+            purchase => purchase.courseId === courseEvent.courseId
+          )
+          
+          return {
+            id: parseInt(courseEvent.courseId),
+            title: `课程 #${courseEvent.courseId}`,
+            description: '从区块链获取的课程', // GraphQL 事件中没有描述，可以后续扩展
+            price: BigInt(courseEvent.price),
+            author: courseEvent.author as `0x${string}`,
+            active: true, // GraphQL 只记录创建事件，默认为活跃
+            purchased: isPurchased
+          }
+        })
 
         setCourses(realCourses)
         setError(null)
       } catch (err) {
-        console.error('获取课程数据失败:', err)
+        console.error('从 The Graph 获取课程数据失败:', err)
         setError('获取课程数据失败，请重试')
       } finally {
         setLoading(false)
@@ -77,12 +74,65 @@ export function useCoursesData() {
     }
 
     fetchCourses()
-  }, [courseCount, purchasedCourses, courseCountError])
+  }, [address, purchasedCourses])
 
-  const refetch = () => {
+  const refetch = async () => {
     setLoading(true)
     setError(null)
-    // 触发重新获取数据的逻辑
+    // 触发重新获取数据，重新调用 useEffect
+    const fetchCourses = async () => {
+      try {
+        const data = await graphqlRequest(GET_COURSES, {
+          first: 100,
+          orderBy: "blockTimestamp", 
+          orderDirection: "desc"
+        })
+
+        if (!data || !data.courseCreateds) {
+          setCourses([])
+          setLoading(false)
+          return
+        }
+
+        let userPurchases: CoursePurchasedEvent[] = []
+        if (address) {
+          try {
+            const purchaseData = await graphqlRequest(GET_USER_PURCHASES, {
+              user: address.toLowerCase()
+            })
+            userPurchases = purchaseData.coursePurchaseds || []
+          } catch (purchaseError) {
+            console.warn('获取用户购买记录失败:', purchaseError)
+          }
+        }
+
+        const realCourses: Course[] = data.courseCreateds.map((courseEvent: CourseCreatedEvent) => {
+          const isPurchased = userPurchases.some(
+            purchase => purchase.courseId === courseEvent.courseId
+          )
+          
+          return {
+            id: parseInt(courseEvent.courseId),
+            title: `课程 #${courseEvent.courseId}`,
+            description: '从区块链获取的课程',
+            price: BigInt(courseEvent.price),
+            author: courseEvent.author as `0x${string}`,
+            active: true,
+            purchased: isPurchased
+          }
+        })
+
+        setCourses(realCourses)
+        setError(null)
+      } catch (err) {
+        console.error('从 The Graph 获取课程数据失败:', err)
+        setError('获取课程数据失败，请重试')
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    await fetchCourses()
   }
 
   return {
@@ -90,6 +140,6 @@ export function useCoursesData() {
     loading,
     error,
     refetch,
-    courseCount: courseCount ? Number(courseCount) : 0
+    courseCount: courses.length
   }
 }

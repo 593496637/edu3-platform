@@ -16,6 +16,14 @@ export function InstructorApplication() {
     args: address ? [address] : undefined,
   })
 
+  // 检查是否已经申请过讲师
+  const { data: hasApplied } = useReadContract({
+    address: CONTRACTS.COURSE_PLATFORM.address,
+    abi: CONTRACTS.COURSE_PLATFORM.abi,
+    functionName: 'instructorApplications',
+    args: address ? [address] : undefined,
+  })
+
   // 处理申请讲师
   const handleApplyForInstructor = async () => {
     try {
@@ -38,8 +46,12 @@ export function InstructorApplication() {
   useEffect(() => {
     if (isInstructor) {
       setApplicationStatus('approved')
+    } else if (hasApplied) {
+      setApplicationStatus('pending')
+    } else {
+      setApplicationStatus('none')
     }
-  }, [isInstructor])
+  }, [isInstructor, hasApplied])
 
   if (!isConnected) {
     return (

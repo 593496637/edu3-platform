@@ -1,17 +1,151 @@
-import { useAccount } from 'wagmi'
+import React, { useState, useEffect } from 'react'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import type { Course } from '../types'
 import { formatEther } from 'viem'
 import { useCoursesData } from '../hooks/useCoursesData'
+import { useTokenApproval } from '../hooks/useTokenApproval'
+import { CONTRACTS } from '../lib/contracts'
 
 interface CourseCardProps {
   course: Course
-  onPurchase: (courseId: number) => void
   onViewDetails: (courseId: number) => void
+  onPurchaseSuccess?: () => void
+  onStartLearning?: (courseId: string) => void
 }
 
-function CourseCard({ course, onPurchase, onViewDetails }: CourseCardProps) {
+function CourseCard({ course, onViewDetails, onPurchaseSuccess, onStartLearning }: CourseCardProps) {
+  const { address, isConnected } = useAccount()
+  const [isPurchasing, setIsPurchasing] = useState(false)
+
+  // 检查是否为课程作者
+  const isAuthor = address && course.author.toLowerCase() === address.toLowerCase()
+
+  // Token 授权管理
+  const {
+    needsApproval,
+    isApproving,
+    handleApprove,
+  } = useTokenApproval(CONTRACTS.COURSE_PLATFORM.address, course.price)
+
+  // 购买课程交易
+  const { writeContract: buyCourse, data: purchaseHash, isPending: isPurchasePending } = useWriteContract()
+  
+  // 等待购买交易确认
+  const { isLoading: isPurchaseLoading, isSuccess: isPurchaseSuccess } = useWaitForTransactionReceipt({
+    hash: purchaseHash,
+  })
+
+  // 处理购买课程
+  const handlePurchase = async () => {
+    if (!isConnected || !address) {
+      alert('请先连接钱包')
+      return
+    }
+
+    setIsPurchasing(true)
+    try {
+      await buyCourse({
+        ...CONTRACTS.COURSE_PLATFORM,
+        functionName: 'buyCourse',
+        args: [BigInt(course.id)],
+      })
+    } catch (error) {
+      console.error('Purchase failed:', error)
+      setIsPurchasing(false)
+    }
+  }
+
+  // 监听购买完成
+  useEffect(() => {
+    if (isPurchaseSuccess) {
+      setIsPurchasing(false)
+      onPurchaseSuccess?.()
+    }
+  }, [isPurchaseSuccess, onPurchaseSuccess])
+
+  // 点击卡片查看详情
+  const handleCardClick = () => {
+    onViewDetails(course.id)
+  }
+
+  // 渲染按钮区域
+  const renderActions = () => {
+    if (!isConnected) {
+      return (
+        <div className="text-center py-2">
+          <span className="text-gray-500 text-sm">请先连接钱包</span>
+        </div>
+      )
+    }
+
+    // 作者自己的课程
+    if (isAuthor) {
+      return (
+        <div className="flex justify-center">
+          <span className="py-2 px-4 bg-purple-100 text-purple-700 rounded font-medium">
+            我的课程
+          </span>
+        </div>
+      )
+    }
+
+    // 已购买的课程
+    if (course.purchased) {
+      return (
+        <div className="space-y-2">
+          <div className="flex justify-center">
+            <span className="py-1 px-3 bg-green-100 text-green-700 rounded text-sm font-medium">
+              已购买
+            </span>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              // 使用回调函数跳转到学习页面
+              onStartLearning?.(course.id.toString())
+            }}
+            className="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
+          >
+            开始学习
+          </button>
+        </div>
+      )
+    }
+
+    // 未购买的课程 - 显示授权和购买按钮
+    return (
+      <div className="flex space-x-2">
+        {needsApproval && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleApprove()
+            }}
+            disabled={isApproving}
+            className="flex-1 py-2 px-4 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {isApproving ? '授权中...' : '授权'}
+          </button>
+        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            handlePurchase()
+          }}
+          disabled={needsApproval || isPurchasing || isPurchasePending || isPurchaseLoading}
+          className="flex-1 py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          {isPurchasing || isPurchasePending || isPurchaseLoading ? '购买中...' : '购买'}
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+    <div 
+      className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer"
+      onClick={handleCardClick}
+    >
       <h3 className="text-xl font-semibold mb-2">{course.title}</h3>
       <p className="text-gray-600 mb-4 line-clamp-3">{course.description}</p>
       
@@ -24,60 +158,28 @@ function CourseCard({ course, onPurchase, onViewDetails }: CourseCardProps) {
         </span>
       </div>
 
-      <div className="flex space-x-2">
-        {course.purchased ? (
-          <button
-            onClick={() => onViewDetails(course.id)}
-            className="flex-1 py-2 px-4 bg-green-500 text-white rounded hover:bg-green-600"
-          >
-            查看课程
-          </button>
-        ) : (
-          <>
-            <button
-              onClick={() => onViewDetails(course.id)}
-              className="flex-1 py-2 px-4 bg-gray-500 text-white rounded hover:bg-gray-600"
-            >
-              详情
-            </button>
-            <button
-              onClick={() => onPurchase(course.id)}
-              className="flex-1 py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              购买
-            </button>
-          </>
-        )}
-      </div>
+      {renderActions()}
     </div>
   )
 }
 
 interface CourseListProps {
   onPurchaseCourse?: (courseId: number) => void
+  onStartLearning?: (courseId: string) => void
 }
 
-export function CourseList({ onPurchaseCourse }: CourseListProps = {}) {
+export function CourseList({ onPurchaseCourse, onStartLearning }: CourseListProps = {}) {
   const { address, isConnected } = useAccount()
   const { courses, loading, error, refetch, courseCount } = useCoursesData()
-
-  const handlePurchase = (courseId: number) => {
-    if (!isConnected) {
-      alert('请先连接钱包')
-      return
-    }
-    
-    if (onPurchaseCourse) {
-      onPurchaseCourse(courseId)
-    } else {
-      console.log('购买课程:', courseId)
-      // 这里可以打开购买模态框
-    }
-  }
 
   const handleViewDetails = (courseId: number) => {
     console.log('查看课程详情:', courseId)
     // 这里可以跳转到课程详情页或打开详情模态框
+  }
+
+  const handlePurchaseSuccess = () => {
+    // 购买成功后刷新课程列表
+    refetch()
   }
 
   if (loading) {
@@ -127,13 +229,16 @@ export function CourseList({ onPurchaseCourse }: CourseListProps = {}) {
           </div>
         </div>
         
-        {!isConnected && (
-          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-yellow-700">
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-blue-700">
+            ⚡ 数据来源于 The Graph，实时同步区块链状态
+          </p>
+          {!isConnected && (
+            <p className="text-yellow-700 mt-2">
               💡 连接钱包后可查看您已购买的课程和进行购买操作
             </p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {courses.length === 0 ? (
@@ -146,8 +251,9 @@ export function CourseList({ onPurchaseCourse }: CourseListProps = {}) {
             <CourseCard
               key={course.id}
               course={course}
-              onPurchase={handlePurchase}
               onViewDetails={handleViewDetails}
+              onPurchaseSuccess={handlePurchaseSuccess}
+              onStartLearning={onStartLearning}
             />
           ))}
         </div>

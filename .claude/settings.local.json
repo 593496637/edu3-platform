@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npm install)",
+      "Bash(npx prisma:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd //c:*)",
+      "Bash(node test-graphql.js)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

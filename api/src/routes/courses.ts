@@ -17,15 +17,21 @@ const CONTRACT_ABI = [
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-    "name": "courses",
-    "outputs": [
-      {"internalType": "address", "name": "instructor", "type": "address"},
-      {"internalType": "string", "name": "title", "type": "string"},
-      {"internalType": "string", "name": "description", "type": "string"},
-      {"internalType": "uint256", "name": "price", "type": "uint256"},
-      {"internalType": "bool", "name": "active", "type": "bool"}
-    ],
+    "inputs": [{"internalType": "uint256", "name": "courseId", "type": "uint256"}],
+    "name": "getCourse",
+    "outputs": [{ 
+      "name": "", 
+      "type": "tuple",
+      "components": [
+        { "name": "id", "type": "uint256" },
+        { "name": "author", "type": "address" },
+        { "name": "price", "type": "uint256" },
+        { "name": "isActive", "type": "bool" },
+        { "name": "createdAt", "type": "uint256" },
+        { "name": "totalSales", "type": "uint256" },
+        { "name": "studentCount", "type": "uint256" }
+      ]
+    }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -68,10 +74,10 @@ router.get('/', asyncHandler(async (req, res) => {
     const courses = [];
     for (let i = 1; i <= totalCoursesNum; i++) {
       try {
-        const courseData = await contract.courses(i);
+        const courseData = await contract.getCourse(i);
         
         // 检查课程是否激活
-        if (!courseData.active) {
+        if (!courseData.isActive) {
           console.log(`Course ${i} is inactive, skipping`);
           continue;
         }
@@ -80,24 +86,26 @@ router.get('/', asyncHandler(async (req, res) => {
         let instructorInfo = null;
         try {
           const instructor = await prisma.user.findUnique({
-            where: { address: courseData.instructor.toLowerCase() },
+            where: { address: courseData.author.toLowerCase() },
             select: { username: true, bio: true }
           });
           instructorInfo = instructor;
         } catch (dbError) {
-          console.warn(`Failed to fetch instructor info for ${courseData.instructor}:`, dbError);
+          console.warn(`Failed to fetch instructor info for ${courseData.author}:`, dbError);
         }
         
         courses.push({
-          id: i,
-          chainId: i,
-          title: courseData.title,
-          description: courseData.description,
+          id: Number(courseData.id),
+          chainId: Number(courseData.id),
+          title: `课程 #${courseData.id}`, // 合约没有title
+          description: '暂无描述', // 合约没有description
           price: courseData.price.toString(),
           priceInEth: ethers.formatEther(courseData.price),
-          instructor: courseData.instructor,
+          instructor: courseData.author,
           instructorInfo: instructorInfo,
-          active: courseData.active,
+          active: courseData.isActive,
+          totalSales: courseData.totalSales.toString(),
+          studentCount: Number(courseData.studentCount),
           source: 'blockchain'
         });
         
@@ -135,9 +143,9 @@ router.get('/:courseId', asyncHandler(async (req, res) => {
     console.log(`🔍 Fetching course ${courseIdNum} from blockchain...`);
     
     // 从智能合约获取课程信息
-    const courseData = await contract.courses(courseIdNum);
+    const courseData = await contract.getCourse(courseIdNum);
     
-    if (!courseData.active) {
+    if (!courseData.isActive) {
       throw new AppError('Course not found or inactive', 404);
     }
     
@@ -145,7 +153,7 @@ router.get('/:courseId', asyncHandler(async (req, res) => {
     let instructorInfo = null;
     try {
       const instructor = await prisma.user.findUnique({
-        where: { address: courseData.instructor.toLowerCase() },
+        where: { address: courseData.author.toLowerCase() },
         select: { 
           username: true, 
           bio: true, 
@@ -173,15 +181,17 @@ router.get('/:courseId', asyncHandler(async (req, res) => {
     }
     
     const course = {
-      id: courseIdNum,
-      chainId: courseIdNum,
-      title: courseData.title,
-      description: courseData.description,
+      id: Number(courseData.id),
+      chainId: Number(courseData.id),
+      title: `课程 #${courseData.id}`,
+      description: '暂无描述',
       price: courseData.price.toString(),
       priceInEth: ethers.formatEther(courseData.price),
-      instructor: courseData.instructor,
+      instructor: courseData.author,
       instructorInfo: instructorInfo,
-      active: courseData.active,
+      active: courseData.isActive,
+      totalSales: courseData.totalSales.toString(),
+      studentCount: Number(courseData.studentCount),
       enrollmentCount: enrollmentCount,
       source: 'blockchain'
     };
@@ -269,6 +279,76 @@ router.get('/:courseId/stats', asyncHandler(async (req, res) => {
   } catch (error) {
     console.error('❌ Error fetching course stats:', error);
     throw new AppError('Failed to fetch course statistics', 500);
+  }
+}));
+
+// 创建/更新课程详情（用于链上创建后同步详情）
+router.post('/', asyncHandler(async (req, res) => {
+  try {
+    const { id, title, description, price, instructor, active } = req.body;
+    
+    if (!id || !title || !instructor) {
+      throw new AppError('Missing required fields: id, title, instructor', 400);
+    }
+    
+    console.log(`📝 Saving course details for course ${id}`);
+    
+    // 检查课程是否已存在
+    const existingCourse = await prisma.course.findUnique({
+      where: { onChainId: parseInt(id) }
+    });
+    
+    if (existingCourse) {
+      // 更新现有课程
+      const updatedCourse = await prisma.course.update({
+        where: { onChainId: parseInt(id) },
+        data: {
+          title: title,
+          description: description || '',
+          price: price || '0',
+          active: active !== false
+        }
+      });
+      
+      res.json({
+        success: true,
+        data: updatedCourse,
+        message: 'Course details updated successfully'
+      });
+    } else {
+      // 创建新课程记录
+      const newCourse = await prisma.course.create({
+        data: {
+          onChainId: parseInt(id),
+          title: title,
+          description: description || '',
+          price: price || '0',
+          active: active !== false,
+          instructor: {
+            connectOrCreate: {
+              where: { address: instructor.toLowerCase() },
+              create: {
+                address: instructor.toLowerCase(),
+                username: `User_${instructor.slice(-6)}`
+              }
+            }
+          }
+        },
+        include: {
+          instructor: true
+        }
+      });
+      
+      res.json({
+        success: true,
+        data: newCourse,
+        message: 'Course details saved successfully'
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Error saving course details:', error);
+    throw new AppError('Failed to save course details', 500);
   }
 }));
 

@@ -70,6 +70,7 @@ model Course {
   requirements String[] // 前置要求
   objectives   String[] // 学习目标
   published   Boolean  @default(false)
+  active      Boolean  @default(true) // 课程是否激活
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

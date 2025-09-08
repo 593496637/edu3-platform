@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useAccount, useWriteContract, useReadContract } from 'wagmi'
+import { useState, useEffect } from 'react'
+import { useAccount, useWriteContract, useReadContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseEther } from 'viem'
 import { CONTRACTS } from '../lib/contracts'
 
@@ -10,8 +10,15 @@ export function CreateCourse() {
     description: '',
     price: ''
   })
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
+  const [isCreating, setIsCreating] = useState(false)
 
-  const { writeContract, isPending } = useWriteContract()
+  const { writeContract, isPending, data: writeData, error: writeError } = useWriteContract()
+  
+  // 等待交易确认
+  const { data: txReceipt } = useWaitForTransactionReceipt({
+    hash: txHash
+  })
 
   // 检查用户是否为讲师
   const { data: isInstructor } = useReadContract({
@@ -19,6 +26,86 @@ export function CreateCourse() {
     functionName: 'isInstructor',
     args: address ? [address] : undefined
   })
+
+  // 处理writeContract成功后的逻辑
+  useEffect(() => {
+    if (writeData) {
+      console.log('交易已提交，hash:', writeData)
+      setTxHash(writeData)
+      alert('课程已提交到区块链，等待确认...')
+    }
+  }, [writeData])
+
+  // 处理writeContract错误
+  useEffect(() => {
+    if (writeError) {
+      console.error('写入合约失败:', writeError)
+      alert('创建课程失败: ' + writeError.message)
+      setIsCreating(false)
+    }
+  }, [writeError])
+
+  // 处理交易确认后的逻辑
+  useEffect(() => {
+    const handleTxConfirmed = async () => {
+      if (!txReceipt || !isCreating) return
+
+      try {
+        // 从交易回执中解析CourseCreated事件获取courseId
+        const courseCreatedLog = txReceipt.logs.find(log => 
+          log.address.toLowerCase() === CONTRACTS.COURSE_PLATFORM.address.toLowerCase()
+        )
+        
+        if (!courseCreatedLog) {
+          throw new Error('未找到CourseCreated事件')
+        }
+
+        // 解析事件获取courseId (简化版，实际应该用ABI解析)
+        // 这里假设courseId是第一个indexed参数
+        const courseId = parseInt(courseCreatedLog.topics[1] || '0', 16)
+        
+        console.log('课程ID:', courseId)
+
+        // 将title和description保存到后端API
+        const response = await fetch('/api/courses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: courseId,
+            title: formData.title,
+            description: formData.description,
+            price: formData.price,
+            instructor: address,
+            active: true
+          })
+        })
+
+        const result = await response.json()
+        
+        if (result.success) {
+          alert('课程创建成功！')
+          // 重置表单
+          setFormData({
+            title: '',
+            description: '',
+            price: ''
+          })
+        } else {
+          alert('课程链上创建成功，但详情保存失败: ' + result.error)
+        }
+      } catch (error) {
+        console.error('处理交易确认失败:', error)
+        alert('课程链上创建成功，但详情保存失败，请手动更新')
+      } finally {
+        setIsCreating(false)
+        setTxHash(undefined)
+      }
+    }
+
+    handleTxConfirmed()
+  }, [txReceipt, isCreating, formData, address])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -41,28 +128,20 @@ export function CreateCourse() {
     }
 
     try {
-      // 创建链上课程
-      await writeContract({
+      setIsCreating(true)
+      
+      // 先创建链上课程（只需要价格）
+      writeContract({
         ...CONTRACTS.COURSE_PLATFORM,
         functionName: 'createCourse',
-        args: [
-          formData.title,
-          formData.description,
-          parseEther(formData.price)
-        ]
+        args: [parseEther(formData.price)]
       })
-
-      // 重置表单
-      setFormData({
-        title: '',
-        description: '',
-        price: ''
-      })
-
-      alert('课程创建成功！')
+      
+      alert('课程提交中，请确认交易...')
     } catch (error) {
       console.error('创建课程失败:', error)
       alert('创建课程失败，请重试')
+      setIsCreating(false)
     }
   }
 
@@ -160,10 +239,10 @@ export function CreateCourse() {
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={isPending}
+            disabled={isPending || isCreating}
             className="py-3 px-8 bg-blue-500 text-white rounded font-medium hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            {isPending ? '创建中...' : '创建课程'}
+            {isPending ? '提交中...' : isCreating ? '等待确认...' : '创建课程'}
           </button>
         </div>
       </form>

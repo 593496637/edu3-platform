@@ -3,15 +3,78 @@ export const CONTRACTS = {
   YD_TOKEN: {
     address: '0xcD274B0B4cf04FfB5E6f1E17f8a62239a9564173' as `0x${string}`,
     abi: [
-      'function balanceOf(address owner) view returns (uint256)',
-      'function approve(address spender, uint256 amount) returns (bool)',
-      'function allowance(address owner, address spender) view returns (uint256)',
-      'function transfer(address to, uint256 amount) returns (bool)',
-      'function decimals() view returns (uint8)',
-      'function symbol() view returns (string)',
-      'function name() view returns (string)',
-      'function exchangeEthForYD() payable',
-      'function exchangeYDForEth(uint256 amount)'
+      {
+        name: 'balanceOf',
+        type: 'function',
+        stateMutability: 'view',
+        inputs: [{ name: 'owner', type: 'address' }],
+        outputs: [{ name: '', type: 'uint256' }]
+      },
+      {
+        name: 'approve',
+        type: 'function',
+        stateMutability: 'nonpayable',
+        inputs: [
+          { name: 'spender', type: 'address' },
+          { name: 'amount', type: 'uint256' }
+        ],
+        outputs: [{ name: '', type: 'bool' }]
+      },
+      {
+        name: 'allowance',
+        type: 'function',
+        stateMutability: 'view',
+        inputs: [
+          { name: 'owner', type: 'address' },
+          { name: 'spender', type: 'address' }
+        ],
+        outputs: [{ name: '', type: 'uint256' }]
+      },
+      {
+        name: 'transfer',
+        type: 'function',
+        stateMutability: 'nonpayable',
+        inputs: [
+          { name: 'to', type: 'address' },
+          { name: 'amount', type: 'uint256' }
+        ],
+        outputs: [{ name: '', type: 'bool' }]
+      },
+      {
+        name: 'decimals',
+        type: 'function',
+        stateMutability: 'view',
+        inputs: [],
+        outputs: [{ name: '', type: 'uint8' }]
+      },
+      {
+        name: 'buyTokensWithETH',
+        type: 'function',
+        stateMutability: 'payable',
+        inputs: [],
+        outputs: []
+      },
+      {
+        name: 'sellTokensForETH',
+        type: 'function',
+        stateMutability: 'nonpayable',
+        inputs: [{ name: 'tokenAmount', type: 'uint256' }],
+        outputs: []
+      },
+      {
+        name: 'getETHAmount',
+        type: 'function',
+        stateMutability: 'pure',
+        inputs: [{ name: 'tokenAmount', type: 'uint256' }],
+        outputs: [{ name: '', type: 'uint256' }]
+      },
+      {
+        name: 'getTokenAmount',
+        type: 'function',
+        stateMutability: 'pure',
+        inputs: [{ name: 'ethAmount', type: 'uint256' }],
+        outputs: [{ name: '', type: 'uint256' }]
+      }
     ] as const
   },
   COURSE_PLATFORM: {
@@ -60,6 +123,56 @@ export const CONTRACTS = {
         stateMutability: 'view',
         inputs: [],
         outputs: [{ name: '', type: 'uint256' }]
+      },
+      {
+        name: 'getUserPurchasedCourses',
+        type: 'function',
+        stateMutability: 'view',
+        inputs: [{ name: 'user', type: 'address' }],
+        outputs: [{ name: '', type: 'uint256[]' }]
+      },
+      {
+        name: 'getAuthorCourses',
+        type: 'function',
+        stateMutability: 'view',
+        inputs: [{ name: 'author', type: 'address' }],
+        outputs: [{ name: '', type: 'uint256[]' }]
+      },
+      {
+        name: 'getCourse',
+        type: 'function',
+        stateMutability: 'view',
+        inputs: [{ name: 'courseId', type: 'uint256' }],
+        outputs: [{ 
+          name: '', 
+          type: 'tuple',
+          components: [
+            { name: 'id', type: 'uint256' },
+            { name: 'author', type: 'address' },
+            { name: 'price', type: 'uint256' },
+            { name: 'isActive', type: 'bool' },
+            { name: 'createdAt', type: 'uint256' },
+            { name: 'totalSales', type: 'uint256' },
+            { name: 'studentCount', type: 'uint256' }
+          ]
+        }]
+      },
+      {
+        name: 'buyCourse',
+        type: 'function',
+        stateMutability: 'nonpayable',
+        inputs: [{ name: 'courseId', type: 'uint256' }],
+        outputs: []
+      },
+      {
+        name: 'hasUserPurchasedCourse',
+        type: 'function',
+        stateMutability: 'view',
+        inputs: [
+          { name: 'courseId', type: 'uint256' },
+          { name: 'user', type: 'address' }
+        ],
+        outputs: [{ name: '', type: 'bool' }]
       },
       // 事件
       {

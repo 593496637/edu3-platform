@@ -222,52 +222,6 @@ router.get('/courses/enrolled',
   })
 );
 
-// Get user's created courses (for instructors)
-router.get('/courses/created',
-  authenticateToken,
-  [
-    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
-    query('limit').optional().isInt({ min: 1, max: 50 }).withMessage('Limit must be between 1 and 50'),
-  ],
-  asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      throw new AppError('Validation failed', 400);
-    }
-
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const offset = (page - 1) * limit;
-
-    const [courses, totalCount] = await Promise.all([
-      prisma.course.findMany({
-        where: { instructorId: req.user!.id },
-        skip: offset,
-        take: limit,
-        include: {
-          _count: {
-            select: { enrollments: true, lessons: true, reviews: true },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.course.count({ where: { instructorId: req.user!.id } }),
-    ]);
-
-    res.json({
-      success: true,
-      data: {
-        courses,
-        pagination: {
-          page,
-          limit,
-          total: totalCount,
-          pages: Math.ceil(totalCount / limit),
-        },
-      },
-    });
-  })
-);
 
 // Update learning progress
 router.post('/progress',
@@ -593,31 +547,6 @@ router.post('/register',
 router.get('/instructor/applications',
   asyncHandler(async (req, res) => {
     try {
-      const { ethers } = await import('ethers');
-      
-      // 智能合约配置
-      const CONTRACT_ADDRESS = '0xD3Ff74DD494471f55B204CB084837D1a7f184092';
-      const CONTRACT_ABI = [
-        {
-          "inputs": [{"internalType": "address", "name": "", "type": "address"}],
-          "name": "isInstructor",
-          "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [{"internalType": "address", "name": "", "type": "address"}],
-          "name": "instructorApplications", 
-          "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
-          "stateMutability": "view",
-          "type": "function"
-        }
-      ];
-      
-      // 连接到区块链
-      const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'http://localhost:8545');
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
-      
       // 从数据库获取所有用户
       const allUsers = await prisma.user.findMany({
         select: {
@@ -631,45 +560,148 @@ router.get('/instructor/applications',
         },
       });
       
-      console.log(`Checking blockchain status for ${allUsers.length} users`);
-      
       const applications = [];
+      let blockchainConnected = false;
       
-      // 检查每个用户的区块链状态
-      for (const user of allUsers) {
+      // 尝试连接区块链
+      try {
+        const { ethers } = await import('ethers');
+        
+        // 智能合约配置
+        const CONTRACT_ADDRESS = '0xD3Ff74DD494471f55B204CB084837D1a7f184092';
+        const CONTRACT_ABI = [
+          {
+            "inputs": [{"internalType": "address", "name": "", "type": "address"}],
+            "name": "isInstructor",
+            "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [{"internalType": "address", "name": "", "type": "address"}],
+            "name": "instructorApplications", 
+            "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "anonymous": false,
+            "inputs": [{"indexed": true, "internalType": "address", "name": "instructor", "type": "address"}],
+            "name": "InstructorApplicationSubmitted",
+            "type": "event"
+          },
+          {
+            "anonymous": false,
+            "inputs": [{"indexed": true, "internalType": "address", "name": "instructor", "type": "address"}],
+            "name": "InstructorApproved",
+            "type": "event"
+          }
+        ];
+        
+        // 连接到区块链
+        const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL || 'http://localhost:8545');
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+        
+        // 测试区块链连接
+        await provider.getNetwork();
+        blockchainConnected = true;
+        
+        console.log(`Querying blockchain events for instructor applications`);
+        
+        // 查询合约事件获取申请者地址
+        const applicantAddresses = new Set<string>();
+        
         try {
-          const [isInstructor, hasApplied] = await Promise.all([
-            contract.isInstructor(user.address),
-            contract.instructorApplications(user.address)
-          ]);
+          // 查询申请事件（从合约部署开始到现在）
+          const applicationEvents = await contract.queryFilter('InstructorApplicationSubmitted', 0, 'latest');
+          const approvalEvents = await contract.queryFilter('InstructorApproved', 0, 'latest');
           
-          // 只显示有申请或已是讲师的用户
-          if (hasApplied || isInstructor) {
-            let status = 'pending';
-            if (isInstructor) {
-              status = 'approved';
+          // 收集所有申请过的地址
+          applicationEvents.forEach(event => {
+            if (event.args && event.args.instructor) {
+              applicantAddresses.add(event.args.instructor.toLowerCase());
+            }
+          });
+          
+          // 收集所有已批准的地址
+          approvalEvents.forEach(event => {
+            if (event.args && event.args.instructor) {
+              applicantAddresses.add(event.args.instructor.toLowerCase());
+            }
+          });
+          
+          console.log(`Found ${applicantAddresses.size} unique addresses from blockchain events`);
+          
+        } catch (eventError) {
+          console.warn('Failed to query events, falling back to user list:', eventError.message);
+          // 如果事件查询失败，回退到检查数据库中的用户
+          allUsers.forEach(user => applicantAddresses.add(user.address.toLowerCase()));
+        }
+        
+        // 检查每个申请者的当前状态
+        for (const address of applicantAddresses) {
+          try {
+            const [isInstructor, hasApplied] = await Promise.all([
+              contract.isInstructor(address),
+              contract.instructorApplications(address)
+            ]);
+            
+            // 只显示有申请或已是讲师的用户
+            if (hasApplied || isInstructor) {
+              // 从数据库获取用户信息（如果存在）
+              const user = allUsers.find(u => u.address.toLowerCase() === address.toLowerCase());
+              
+              let status = 'pending';
+              if (isInstructor) {
+                status = 'approved';
+              }
+              
+              applications.push({
+                address: address,
+                username: user?.username || `user_${address.slice(2, 8)}`,
+                email: user?.email || null,
+                bio: user?.bio || null,
+                appliedAt: user?.createdAt || new Date(),
+                status: status,
+                reviewedAt: isInstructor ? (user?.createdAt || new Date()) : null,
+                notes: isInstructor ? 'Approved on blockchain' : 'Pending blockchain approval',
+                isInstructor: isInstructor,
+                hasApplied: hasApplied,
+                createdAt: user?.createdAt || new Date(),
+                source: 'blockchain'
+              });
             }
             
-            applications.push({
-              address: user.address,
-              username: user.username,
-              email: user.email,
-              bio: user.bio,
-              appliedAt: user.createdAt, // 使用注册时间
-              status: status,
-              reviewedAt: isInstructor ? user.createdAt : null,
-              notes: isInstructor ? 'Approved on blockchain' : 'Pending blockchain approval',
-              isInstructor: isInstructor,
-              hasApplied: hasApplied,
-              createdAt: user.createdAt,
-              source: 'blockchain'
-            });
+          } catch (blockchainError) {
+            console.warn(`Failed to check blockchain status for ${address}:`, blockchainError.message);
+            
+            // 如果区块链调用失败，尝试从数据库获取信息
+            const user = allUsers.find(u => u.address.toLowerCase() === address.toLowerCase());
+            if (user && user.isInstructor) {
+              applications.push({
+                address: user.address,
+                username: user.username,
+                email: user.email,
+                bio: user.bio,
+                appliedAt: user.createdAt,
+                status: 'approved',
+                reviewedAt: user.createdAt,
+                notes: 'Database status (blockchain unavailable)',
+                isInstructor: user.isInstructor,
+                hasApplied: false,
+                createdAt: user.createdAt,
+                source: 'database_fallback'
+              });
+            }
           }
-          
-        } catch (blockchainError) {
-          console.warn(`Failed to check blockchain status for ${user.address}:`, blockchainError.message);
-          
-          // 如果区块链调用失败，回退到数据库状态
+        }
+        
+      } catch (blockchainError) {
+        console.warn('Failed to connect to blockchain:', blockchainError.message);
+        blockchainConnected = false;
+        
+        // 回退到数据库数据
+        allUsers.forEach(user => {
           if (user.isInstructor) {
             applications.push({
               address: user.address,
@@ -686,7 +718,7 @@ router.get('/instructor/applications',
               source: 'database_fallback'
             });
           }
-        }
+        });
       }
       
       // 排序：待审核优先，然后按申请时间倒序
@@ -706,6 +738,7 @@ router.get('/instructor/applications',
           applicationsFound: applications.length,
           pendingApplications: applications.filter(a => a.status === 'pending').length,
           approvedInstructors: applications.filter(a => a.status === 'approved').length,
+          blockchainConnected: blockchainConnected,
         }
       });
       
